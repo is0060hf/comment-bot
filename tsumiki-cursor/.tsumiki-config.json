@@ -1,0 +1,15 @@
+{
+  "project": {
+    "name": "sleep-mentor",
+    "version": "1.0.0",
+    "framework": "tsumiki-cursor",
+    "docsRoot": ".spec-workflow",
+    "integration": "spec-workflow-mcp"
+  },
+  "settings": {
+    "language": "ja",
+    "testFramework": "vitest",
+    "linter": "eslint",
+    "formatter": "prettier"
+  }
+}

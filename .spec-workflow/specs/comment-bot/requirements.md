@@ -74,6 +74,24 @@
 - セキュリティ: クライアント直フェッチ禁止、最小権限、秘密はローカルのみ
 - 可用性: バックオフ/フォールバック/代替プロバイダ
 
+## Operational Defaults（Best Practice 提案）
+- レート制御初期値
+  - `minIntervalSeconds`: 60
+  - `maxPer10Min`: 8
+  - `cooldownSeconds`: 45
+  - `dedupeWindowSec`: 300
+- YouTube Live Chat 文字数上限: 200字を上限として運用
+  - 200字超は短縮（要約）を優先、やむを得ず分割する場合は最大2分割・間隔>= `cooldownSeconds`
+- コメント長ポリシー: 20–60字（UI可変: 下限10–30/上限40–120 の範囲）
+- LLM/分類/モデレーションのタイムアウト/リトライ
+  - 生成: timeout 2000ms / retry 2（指数 250→500ms）
+  - 分類: timeout 800ms / retry 2
+  - モデレーション: timeout 800ms / retry 2
+- STT優先/モデル（初期案・要実機検証）
+  - Deepgram: "nova"（ja）→ GCP: "latest-ja-conversational" → Whisper API
+- LLM優先: OpenAI（例: gpt-4o-mini）
+- モデレーション優先: OpenAI Moderation → ルールベース
+
 ## Testing Strategy（要求水準）
 - ユニット: 機会検知/生成/安全フィルタ/投稿の個別検証
 - 統合: STT→検知→生成→安全→投稿の流れ（外部APIはモック）

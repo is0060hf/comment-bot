@@ -18,8 +18,8 @@
 
 ## External Integrations
 - YouTube Data API v3（`liveChatMessages.insert`）
-- STT: GCP/Azure/Deepgram/Whisper API（選択式）
-- モデレーション: Azure AI Content Safety / OpenAI Moderation
+- STT: Deepgram/GCP/Whisper API（Azureは非採用）
+- モデレーション: OpenAI Moderation（Azureは非採用）
 - 認証: OAuth（ローカルで実施）
 
 ## Monitoring & Dashboard

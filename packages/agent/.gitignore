@@ -1,0 +1,40 @@
+# 環境変数
+.env
+.env.local
+.env.*.local
+
+# 認証情報
+credentials/
+*.pem
+*.key
+*.crt
+
+# ビルド成果物
+dist/
+build/
+
+# 依存関係
+node_modules/
+
+# テストカバレッジ
+coverage/
+*.lcov
+
+# ログ
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# テンポラリファイル
+tmp/
+temp/

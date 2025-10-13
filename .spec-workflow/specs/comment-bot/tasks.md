@@ -96,3 +96,40 @@
   - File: N/A (tooling)
   - Implement: serena起動→オンボーディング→要件/設計/ポリシー/優先プロバイダを記憶
   - Success: メモリ参照で仕様方針が呼び出せる
+
+## Tsumiki AITDD Support
+
+- [ ] 20. Provider & platform mocks
+  - File: packages/agent/test/mocks/{stt,llm,moderation,youtube}.ts
+  - Implement: Deepgram/GCP/Whisper, OpenAI, Moderation, YouTubeのモックと固定応答/失敗注入
+  - Success: 失敗注入でフェイルオーバー/バックオフの挙動が再現可能
+
+- [ ] 21. Unit tests scaffolding (Red first)
+  - File: packages/agent/test/unit/{trigger,formatter,emoji,ngWords,moderation,rateLimiter}.test.ts
+  - Implement: TC-013/014/015/017/レート周りの失敗テストを先に作成
+  - Success: 初回Red→実装後Green→Refactor→再実行の流れを確立
+
+- [ ] 22. E2E pipeline test (mocked)
+  - File: packages/agent/test/e2e/pipeline.test.ts
+  - Implement: STT→検知→生成→安全→投稿の擬似フロー（TC-011〜017）
+  - Success: 必要時のみ投稿、20–60字、許可絵文字≤1、NGなし、レート遵守
+
+- [ ] 23. Posting length policy handling
+  - File: packages/agent/src/platform/youtube/messageLength.ts
+  - Implement: 200字上限の短縮優先/最大2分割・間隔>=cooldown、テスト付与
+  - Success: 長文入力で期待どおり短縮/分割される
+
+- [ ] 24. CI test runner setup
+  - File: package.json, vitest.config.ts, .github/workflows/test.yml（任意）
+  - Implement: vitest実行、レポート出力、ワークスペース対応
+  - Success: ローカル/CIでテストが安定実行
+
+- [ ] 25. UI server actions tests (settings/safety)
+  - File: packages/web/test/{settings,safety}.test.ts
+  - Implement: zod検証・サニタイズ・EdgeConfig書き込みのモックテスト
+  - Success: 無効設定がreject、正規設定がpersist（秘密は含まない）
+
+- [ ] 26. Readme & flow docs for AITDD
+  - File: README.md, .spec-workflow/specs/comment-bot/tests/test_spec.md
+  - Implement: Red→Green→Refactor→Verifyの運用手順を明記（実装禁止フェーズのガイド含む）
+  - Success: 新規メンバーが手順に従いTDDを即実行可能

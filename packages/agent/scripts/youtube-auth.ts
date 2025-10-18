@@ -22,18 +22,14 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-const oauth2Client = new google.auth.OAuth2(
-  CLIENT_ID,
-  CLIENT_SECRET,
-  REDIRECT_URI
-);
+const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
 async function getRefreshToken() {
   // Generate the auth URL with access_type=offline
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    prompt: 'consent' // Force consent screen to ensure refresh token is returned
+    prompt: 'consent', // Force consent screen to ensure refresh token is returned
   });
 
   console.log('Opening browser for YouTube authentication...');
@@ -43,15 +39,15 @@ async function getRefreshToken() {
   // Create local server to handle OAuth callback
   const server = createServer(async (req, res) => {
     const parsedUrl = parse(req.url || '', true);
-    
+
     if (parsedUrl.pathname === '/oauth2callback') {
       const code = parsedUrl.query.code as string;
-      
+
       if (code) {
         try {
           // Exchange authorization code for tokens
           const { tokens } = await oauth2Client.getToken(code);
-          
+
           if (tokens.refresh_token) {
             console.log('\n✅ Authentication successful!');
             console.log('\nYour refresh token is:');
@@ -60,11 +56,11 @@ async function getRefreshToken() {
             console.log('─'.repeat(60));
             console.log('\nAdd this to your .env file:');
             console.log(`YOUTUBE_REFRESH_TOKEN=${tokens.refresh_token}`);
-            
+
             // Update .env file
             const envPath = path.join(__dirname, '..', '.env');
             let envContent = await fs.readFile(envPath, 'utf-8');
-            
+
             if (envContent.includes('YOUTUBE_REFRESH_TOKEN=')) {
               envContent = envContent.replace(
                 /YOUTUBE_REFRESH_TOKEN=.*/,
@@ -73,10 +69,10 @@ async function getRefreshToken() {
             } else {
               envContent += `\nYOUTUBE_REFRESH_TOKEN=${tokens.refresh_token}\n`;
             }
-            
+
             await fs.writeFile(envPath, envContent);
             console.log('\n✅ .env file has been updated automatically!');
-            
+
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(`
               <html>
@@ -88,7 +84,9 @@ async function getRefreshToken() {
               </html>
             `);
           } else {
-            throw new Error('No refresh token received. Make sure you are authenticating for the first time.');
+            throw new Error(
+              'No refresh token received. Make sure you are authenticating for the first time.'
+            );
           }
         } catch (error) {
           console.error('Error exchanging code for token:', error);
@@ -103,7 +101,7 @@ async function getRefreshToken() {
             </html>
           `);
         }
-        
+
         // Close server after handling request
         setTimeout(() => {
           server.close();
@@ -122,7 +120,7 @@ async function getRefreshToken() {
   server.listen(3000, () => {
     console.log('Local server started on http://localhost:3000');
     console.log('Waiting for authentication...\n');
-    
+
     // Open browser
     open(authUrl).catch(() => {
       console.log('Could not open browser automatically. Please visit the URL above.');

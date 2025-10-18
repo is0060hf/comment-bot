@@ -1,4 +1,5 @@
 import { Readable, Writable, Transform } from 'stream';
+
 import { STTPort, STTResult, STTError } from '../../ports/stt';
 
 /**
@@ -25,7 +26,7 @@ export class MockSTTAdapter implements STTPort {
     'みなさん、こんにちは！今日も配信を見てくれてありがとうございます。',
     'それでは次のトピックに移りましょう。何か質問はありますか？',
     '今日のテーマはプログラミングの基礎についてです。',
-    'チャットでコメントお待ちしています！'
+    'チャットでコメントお待ちしています！',
   ];
 
   constructor(config: MockSTTConfig = {}) {
@@ -33,53 +34,42 @@ export class MockSTTAdapter implements STTPort {
       failureRate: config.failureRate ?? 0,
       healthy: config.healthy ?? true,
       defaultConfidence: config.defaultConfidence ?? 0.95,
-      streamingIntervalMs: config.streamingIntervalMs ?? 500
+      streamingIntervalMs: config.streamingIntervalMs ?? 500,
     };
   }
 
   async transcribe(audio: Buffer): Promise<STTResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new STTError(
-        'Mock STT service failure',
-        'MOCK_STT_ERROR',
-        true
-      );
+      throw new STTError('Mock STT service failure', 'MOCK_STT_ERROR', true);
     }
 
     // 空のバッファチェック
     if (audio.length === 0) {
-      throw new STTError(
-        'Empty audio buffer',
-        'EMPTY_AUDIO',
-        false
-      );
+      throw new STTError('Empty audio buffer', 'EMPTY_AUDIO', false);
     }
 
     // ランダムなサンプルトランスクリプトを返す
-    const transcript = this.sampleTranscripts[
-      Math.floor(Math.random() * this.sampleTranscripts.length)
-    ] ?? this.sampleTranscripts[0] ?? 'デフォルトトランスクリプト';
+    const transcript =
+      this.sampleTranscripts[Math.floor(Math.random() * this.sampleTranscripts.length)] ??
+      this.sampleTranscripts[0] ??
+      'デフォルトトランスクリプト';
 
     return {
       transcript,
       confidence: this.config.defaultConfidence,
       language: 'ja',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
   startStreaming(): Writable & Readable {
     const transform = new Transform({
       objectMode: true,
-      transform: (chunk: Buffer, encoding, callback) => {
+      transform: (_chunk: Buffer, _encoding, callback) => {
         // 失敗シミュレーション
         if (Math.random() < this.config.failureRate) {
-          callback(new STTError(
-            'Mock STT streaming failure',
-            'MOCK_STT_STREAM_ERROR',
-            true
-          ));
+          callback(new STTError('Mock STT streaming failure', 'MOCK_STT_STREAM_ERROR', true));
           return;
         }
 
@@ -90,25 +80,27 @@ export class MockSTTAdapter implements STTPort {
           'テスト音声です',
           '今日は',
           '新しい機能について',
-          '説明します'
+          '説明します',
         ];
 
-        const transcript = partialTranscripts[
-          Math.floor(Math.random() * partialTranscripts.length)
-        ] ?? partialTranscripts[0] ?? 'チャンク';
+        const transcript =
+          partialTranscripts[Math.floor(Math.random() * partialTranscripts.length)] ??
+          partialTranscripts[0] ??
+          'チャンク';
 
         const result: STTResult = {
           transcript,
           confidence: this.config.defaultConfidence * 0.9, // ストリーミングは少し低い信頼度
           language: 'ja',
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
 
         // 非同期でチャンクを送信
         setTimeout(() => {
-          callback(null, result);
+          transform.push(result);
+          callback();
         }, this.config.streamingIntervalMs);
-      }
+      },
     });
 
     return transform;

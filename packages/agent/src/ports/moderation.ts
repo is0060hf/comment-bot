@@ -1,7 +1,7 @@
 /**
  * モデレーションカテゴリ
  */
-export type ModerationCategory = 
+export type ModerationCategory =
   | 'hate'
   | 'harassment'
   | 'self-harm'
@@ -70,7 +70,7 @@ export interface ModerationPort {
    * @throws ModerationError
    */
   moderate(content: string, context?: Record<string, unknown>): Promise<ModerationResult>;
-  
+
   /**
    * 複数のコンテンツを一括モデレート
    * @param contents モデレート対象のコンテンツ配列
@@ -78,7 +78,7 @@ export interface ModerationPort {
    * @throws ModerationError
    */
   moderateBatch(contents: string[]): Promise<ModerationResult[]>;
-  
+
   /**
    * 不適切なコンテンツをリライト
    * @param content リライト対象のコンテンツ
@@ -87,7 +87,7 @@ export interface ModerationPort {
    * @throws ModerationError
    */
   rewriteContent(content: string, guidelines?: string[]): Promise<RewriteResult>;
-  
+
   /**
    * ヘルスチェック
    * @returns サービスが利用可能かどうか

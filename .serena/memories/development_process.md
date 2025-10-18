@@ -1,1 +1,6 @@
-Development methodology: Tsumiki AITDD (AI-assisted TDD) in Cursor. Specs live under .spec-workflow/specs/comment-bot/{requirements.md,design.md,tasks.md,tests/test_spec.md}. Each task proceeds with Red→Green→Refactor→Verify guided by tests in tests/test_spec.md. Use spec-workflow MCP dashboard for spec status; use tsumiki-cursor scripts (kairo.sh, tdd.sh, reverse.sh) in reference mode (reads .spec-workflow/specs/*). No implementation without spec/task alignment. All API calls remain server-side; secrets stay local.
+Development methodology: Tsumiki AITDD (AI-assisted TDD) in Cursor. Specs live under
+.spec-workflow/specs/comment-bot/{requirements.md,design.md,tasks.md,tests/test_spec.md}. Each task
+proceeds with Red→Green→Refactor→Verify guided by tests in tests/test_spec.md. Use spec-workflow MCP
+dashboard for spec status; use tsumiki-cursor scripts (kairo.sh, tdd.sh, reverse.sh) in reference
+mode (reads .spec-workflow/specs/\*). No implementation without spec/task alignment. All API calls
+remain server-side; secrets stay local.

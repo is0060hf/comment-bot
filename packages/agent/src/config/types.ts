@@ -30,13 +30,13 @@ export type SafetyLevel = z.infer<typeof SafetyLevelSchema>;
 export const ProviderConfigSchema = z.object({
   stt: z.object({
     primary: STTProviderSchema,
-    fallback: z.array(STTProviderSchema).default([])
+    fallback: z.array(STTProviderSchema).default([]),
   }),
   llm: z.object({
     primary: LLMProviderSchema,
-    model: z.string().default('gpt-4o-mini')
+    model: z.string().default('gpt-4o-mini'),
   }),
-  moderation: z.array(ModerationProviderSchema).default(['openai_moderation', 'rule_based'])
+  moderation: z.array(ModerationProviderSchema).default(['openai_moderation', 'rule_based']),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
@@ -45,12 +45,14 @@ export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
  * コメント設定
  */
 export const CommentConfigSchema = z.object({
-  targetLength: z.object({
-    min: z.number().min(1).max(100).default(20),
-    max: z.number().min(20).max(200).default(60)
-  }).refine(data => data.min <= data.max, {
-    message: 'min must be less than or equal to max'
-  }),
+  targetLength: z
+    .object({
+      min: z.number().min(1).max(100).default(20),
+      max: z.number().min(20).max(200).default(60),
+    })
+    .refine((data) => data.min <= data.max, {
+      message: 'min must be less than or equal to max',
+    }),
   tone: z.string().default('friendly'),
   characterPersona: z.string().default('好奇心旺盛な初心者'),
   encouragedExpressions: z.array(z.string()).default(['なるほど', 'すごい']),
@@ -58,8 +60,8 @@ export const CommentConfigSchema = z.object({
   emojiPolicy: z.object({
     enabled: z.boolean().default(true),
     maxCount: z.number().min(0).max(5).default(1),
-    allowedEmojis: z.array(z.string()).default(['👏', '✨', '🙏', '💡'])
-  })
+    allowedEmojis: z.array(z.string()).default(['👏', '✨', '🙏', '💡']),
+  }),
 });
 
 export type CommentConfig = z.infer<typeof CommentConfigSchema>;
@@ -78,8 +80,8 @@ export const SafetyConfigSchema = z.object({
     sexual: z.number().min(0).max(1).default(0.7),
     violence: z.number().min(0).max(1).default(0.7),
     illegal: z.number().min(0).max(1).default(0.8),
-    graphic: z.number().min(0).max(1).default(0.8)
-  })
+    graphic: z.number().min(0).max(1).default(0.8),
+  }),
 });
 
 export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;
@@ -90,7 +92,7 @@ export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;
 export const RateLimitConfigSchema = z.object({
   messagesPerWindow: z.number().min(1).max(50).default(30),
   windowSeconds: z.number().min(10).max(300).default(30),
-  minIntervalSeconds: z.number().min(1).max(60).default(2)
+  minIntervalSeconds: z.number().min(1).max(60).default(2),
 });
 
 export type RateLimitConfig = z.infer<typeof RateLimitConfigSchema>;
@@ -103,10 +105,12 @@ export const AppConfigSchema = z.object({
   comment: CommentConfigSchema,
   safety: SafetyConfigSchema,
   rateLimit: RateLimitConfigSchema,
-  youtube: z.object({
-    videoId: z.string().optional(),
-    liveChatId: z.string().optional()
-  }).default({})
+  youtube: z
+    .object({
+      videoId: z.string().optional(),
+      liveChatId: z.string().optional(),
+    })
+    .default({}),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -118,18 +122,18 @@ export const DEFAULT_CONFIG: AppConfig = {
   providers: {
     stt: {
       primary: 'deepgram',
-      fallback: ['gcp', 'whisper']
+      fallback: ['gcp', 'whisper'],
     },
     llm: {
       primary: 'openai',
-      model: 'gpt-4o-mini'
+      model: 'gpt-4o-mini',
     },
-    moderation: ['openai_moderation', 'rule_based']
+    moderation: ['openai_moderation', 'rule_based'],
   },
   comment: {
     targetLength: {
       min: 20,
-      max: 60
+      max: 60,
     },
     tone: 'friendly',
     characterPersona: '好奇心旺盛な初心者',
@@ -138,8 +142,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     emojiPolicy: {
       enabled: true,
       maxCount: 1,
-      allowedEmojis: ['👏', '✨', '🙏', '💡']
-    }
+      allowedEmojis: ['👏', '✨', '🙏', '💡'],
+    },
   },
   safety: {
     enabled: true,
@@ -152,15 +156,15 @@ export const DEFAULT_CONFIG: AppConfig = {
       sexual: 0.7,
       violence: 0.7,
       illegal: 0.8,
-      graphic: 0.8
-    }
+      graphic: 0.8,
+    },
   },
   rateLimit: {
     messagesPerWindow: 30,
     windowSeconds: 30,
-    minIntervalSeconds: 2
+    minIntervalSeconds: 2,
   },
-  youtube: {}
+  youtube: {},
 };
 
 /**

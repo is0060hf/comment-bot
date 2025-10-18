@@ -3,16 +3,18 @@
  * 音声認識からコメント投稿までの全体的な処理を管理
  */
 
-import type { STTPort } from '../ports/stt';
-import type { LLMPort, CommentOpportunityContext, CommentGenerationContext } from '../ports/llm';
-import type { YouTubePort } from '../ports/youtube';
-import type { AppConfig } from '../config/types';
 import { CommentLengthPolicy } from '../policies/comment-length';
-import { NGWordsPolicy } from '../policies/ng-words';
 import { EmojiPolicy } from '../policies/emoji';
-import { CommentGenerationPrompt } from '../prompts/comment-generation';
+import { NGWordsPolicy } from '../policies/ng-words';
 import { CommentClassificationPrompt } from '../prompts/comment-classification';
+import { CommentGenerationPrompt } from '../prompts/comment-generation';
+
 import { ModerationManager } from './moderation-manager';
+
+import type { AppConfig } from '../config/types';
+import type { LLMPort, CommentOpportunityContext, CommentGenerationContext } from '../ports/llm';
+import type { STTPort } from '../ports/stt';
+import type { YouTubePort } from '../ports/youtube';
 
 /**
  * パイプライン設定
@@ -67,15 +69,15 @@ export class CommentPipeline {
   private emojiPolicy: EmojiPolicy;
   private generationPrompt: CommentGenerationPrompt;
   private classificationPrompt: CommentClassificationPrompt;
-  
+
   private running = false;
   private liveChatId?: string;
   private context: PipelineContext = {
     recentTranscripts: [],
     recentTopics: [],
-    recentComments: []
+    recentComments: [],
   };
-  
+
   constructor(pipelineConfig: CommentPipelineConfig) {
     this.config = pipelineConfig.config;
     this.sttAdapter = pipelineConfig.sttAdapter;
@@ -98,7 +100,7 @@ export class CommentPipeline {
     this.context = {
       recentTranscripts: [],
       recentTopics: [],
-      recentComments: []
+      recentComments: [],
     };
   }
 
@@ -122,13 +124,13 @@ export class CommentPipeline {
    */
   async processAudio(audioBuffer: Buffer): Promise<ProcessResult> {
     const timestamp = new Date();
-    
+
     if (!this.running) {
       return {
         success: false,
         posted: false,
         error: 'Pipeline not running',
-        timestamp
+        timestamp,
       };
     }
 
@@ -136,22 +138,22 @@ export class CommentPipeline {
       // 1. 音声認識
       const transcriptResult = await this.sttAdapter.transcribe(audioBuffer);
       const transcript = transcriptResult.transcript;
-      
+
       // コンテキストに追加
       this.addToContext('transcript', transcript);
-      
+
       // 2. コメント機会の評価
       const shouldComment = await this.evaluateCommentOpportunityInternal(transcript);
-      
+
       if (!shouldComment) {
         return {
           success: true,
           transcript,
           posted: false,
-          timestamp
+          timestamp,
         };
       }
-      
+
       // 3. レート制限チェック
       const rateLimitInfo = await this.youtubeAdapter.getRateLimitInfo();
       if (rateLimitInfo.remaining <= 0) {
@@ -160,29 +162,30 @@ export class CommentPipeline {
           transcript,
           posted: false,
           error: 'YouTube API rate limit exceeded',
-          timestamp
+          timestamp,
         };
       }
-      
+
       // 最小投稿間隔のチェック
       if (!this.checkMinInterval()) {
         return {
           success: true,
           transcript,
           posted: false,
-          timestamp
+          timestamp,
         };
       }
-      
+
       // 4. コメント生成
       const generatedComment = await this.generateComment(transcript);
-      
+
       // 5. ポリシー適用
       const policyAppliedComment = await this.applyPolicies(generatedComment);
-      
+
       // 6. モデレーション
-      const moderationResult = await this.moderationManager.moderateWithThresholds(policyAppliedComment);
-      
+      const moderationResult =
+        await this.moderationManager.moderateWithThresholds(policyAppliedComment);
+
       if (moderationResult.flagged && moderationResult.suggestedAction === 'block') {
         return {
           success: true,
@@ -190,10 +193,10 @@ export class CommentPipeline {
           generatedComment: policyAppliedComment,
           posted: false,
           error: 'Comment blocked by moderation',
-          timestamp
+          timestamp,
         };
       }
-      
+
       let finalComment = policyAppliedComment;
       if (moderationResult.requiresRewrite) {
         const rewriteResult = await this.moderationManager.moderateAndRewrite(policyAppliedComment);
@@ -201,30 +204,29 @@ export class CommentPipeline {
           finalComment = rewriteResult.rewrittenContent!;
         }
       }
-      
+
       // 7. 投稿
       const postResult = await this.youtubeAdapter.postMessage(this.liveChatId!, finalComment);
-      
+
       // コンテキストに追加
       this.addToContext('comment', finalComment);
       this.context.lastCommentTime = timestamp;
-      
+
       return {
         success: true,
         transcript,
         generatedComment: finalComment,
         posted: true,
         postId: postResult.id,
-        timestamp
+        timestamp,
       };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
         success: false,
         posted: false,
-        error: errorMessage.includes('STT') ? 'STT failed: ' + errorMessage : errorMessage,
-        timestamp
+        error: errorMessage.includes('STT') ? `STT failed: ${  errorMessage}` : errorMessage,
+        timestamp,
       };
     }
   }
@@ -248,11 +250,11 @@ export class CommentPipeline {
     const context: CommentOpportunityContext = {
       transcript,
       recentTopics: this.context.recentTopics,
-      engagementLevel: 0.5 // モック値
+      engagementLevel: 0.5, // モック値
     };
-    
+
     const result = await this.llmAdapter.classifyCommentOpportunity(context);
-    
+
     // necessaryの場合はtrue
     return result.classification === 'necessary';
   }
@@ -260,7 +262,7 @@ export class CommentPipeline {
   /**
    * コメント生成
    */
-  private async generateComment(transcript: string): Promise<string> {
+  private async generateComment(_transcript: string): Promise<string> {
     const context: CommentGenerationContext = {
       recentTopics: this.context.recentTopics,
       keywords: [],
@@ -269,10 +271,10 @@ export class CommentPipeline {
         tone: this.config.comment.tone,
         characterPersona: this.config.comment.characterPersona,
         encouragedExpressions: this.config.comment.encouragedExpressions,
-        targetLength: this.config.comment.targetLength
-      }
+        targetLength: this.config.comment.targetLength,
+      },
     };
-    
+
     const result = await this.llmAdapter.generateComment(context);
     return result.comment;
   }
@@ -282,16 +284,16 @@ export class CommentPipeline {
    */
   private async applyPolicies(comment: string): Promise<string> {
     let processedComment = comment;
-    
+
     // NG語のサニタイズ
     processedComment = this.ngWordsPolicy.sanitize(processedComment);
-    
+
     // 文字数調整
     processedComment = this.lengthPolicy.adjust(processedComment);
-    
+
     // 絵文字の調整
     processedComment = this.emojiPolicy.sanitize(processedComment);
-    
+
     return processedComment;
   }
 
@@ -302,12 +304,12 @@ export class CommentPipeline {
     if (!this.context.lastCommentTime) {
       return true;
     }
-    
+
     const now = Date.now();
     const lastTime = this.context.lastCommentTime.getTime();
     const minInterval = this.config.rateLimit.minIntervalSeconds * 1000;
-    
-    return (now - lastTime) >= minInterval;
+
+    return now - lastTime >= minInterval;
   }
 
   /**
@@ -315,7 +317,7 @@ export class CommentPipeline {
    */
   private addToContext(type: 'transcript' | 'topic' | 'comment', content: string): void {
     const maxItems = 10;
-    
+
     switch (type) {
       case 'transcript':
         this.context.recentTranscripts.unshift(content);
@@ -330,14 +332,14 @@ export class CommentPipeline {
           }
         }
         break;
-        
+
       case 'topic':
         this.context.recentTopics.unshift(content);
         if (this.context.recentTopics.length > maxItems) {
           this.context.recentTopics.pop();
         }
         break;
-        
+
       case 'comment':
         this.context.recentComments.unshift(content);
         if (this.context.recentComments.length > maxItems) {
@@ -359,7 +361,7 @@ export class CommentPipeline {
    */
   async updateConfig(newConfig: AppConfig): Promise<void> {
     this.config = newConfig;
-    
+
     // 各ポリシーとプロンプトの設定を更新
     this.lengthPolicy.updateConfig(newConfig.comment);
     this.ngWordsPolicy.updateConfig(newConfig.comment);

@@ -33,7 +33,7 @@ export class CommentGenerationPrompt {
     const emojiInstructions = this.getEmojiInstructions();
     const ngWordWarnings = this.getNGWordWarnings();
     const encouragedExpressions = this.getEncouragedExpressions();
-    
+
     return `あなたはYouTube配信へのコメントを投稿する視聴者です。
 
 キャラクター設定:
@@ -60,16 +60,14 @@ ${encouragedExpressions}
    * ユーザープロンプトをフォーマット
    */
   formatUserPrompt(context: CommentGenerationContext): string {
-    const topicsSection = context.recentTopics.length > 0
-      ? `最近の話題: ${context.recentTopics.join(', ')}`
-      : '';
-    
-    const keywordsSection = context.keywords.length > 0
-      ? `キーワード: ${context.keywords.join(', ')}`
-      : '';
-    
+    const topicsSection =
+      context.recentTopics.length > 0 ? `最近の話題: ${context.recentTopics.join(', ')}` : '';
+
+    const keywordsSection =
+      context.keywords.length > 0 ? `キーワード: ${context.keywords.join(', ')}` : '';
+
     const recentCommentsSection = this.formatRecentComments(context.chatHistory);
-    
+
     return `現在の配信状況:
 ${topicsSection}
 ${keywordsSection}
@@ -88,7 +86,7 @@ ${this.formatExamples()}`;
    */
   formatExamples(): string {
     const examples = this.generateExampleComments();
-    
+
     return `
 例:
 ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
@@ -109,21 +107,21 @@ ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
       formal: `- 丁寧で礼儀正しい口調を使用してください
 - です・ます調で統一してください
 - 敬語を適切に使用してください`,
-      
+
       casual: `- カジュアルで親しみやすい口調を使用してください
 - 友達と話すような自然な言葉遣いにしてください
 - だ・である調でも構いません`,
-      
+
       friendly: `- フレンドリーで温かみのある口調を使用してください
 - 親しみやすさと適度な丁寧さのバランスを保ってください
 - 相手を尊重する姿勢を示してください`,
-      
+
       enthusiastic: `- 熱心で感動的な口調を使用してください
 - 興奮や感動を表現する言葉を使ってください
-- 「！」を適度に使用して感情を表現してください`
+- 「！」を適度に使用して感情を表現してください`,
     };
-    
-    const tone = this.config.tone as keyof typeof toneMap;
+
+    const tone = this.config.tone;
     return toneMap[tone] ?? toneMap.friendly!;
   }
 
@@ -142,7 +140,7 @@ ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
     if (!this.config.emojiPolicy.enabled) {
       return '- 絵文字は使用しないでください';
     }
-    
+
     return `- 絵文字は${this.config.emojiPolicy.maxCount}個まで使用可能です
 - 使用できる絵文字: ${this.config.emojiPolicy.allowedEmojis.join(' ')}
 - 絵文字は自然な位置に配置してください`;
@@ -155,7 +153,7 @@ ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
     if (this.config.ngWords.length === 0) {
       return '';
     }
-    
+
     return `
 使用禁止語句（NG語）:
 - 以下の言葉や類似表現は絶対に使用しないでください: ${this.config.ngWords.join(', ')}
@@ -169,7 +167,7 @@ ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
     if (this.config.encouragedExpressions.length === 0) {
       return '';
     }
-    
+
     return `推奨表現:
 - 以下の表現を適切に使用することを推奨します: ${this.config.encouragedExpressions.join(', ')}
 - ただし、文脈に合わない場合は無理に使用する必要はありません`;
@@ -182,12 +180,12 @@ ${examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
     if (chatHistory.length === 0) {
       return '';
     }
-    
+
     const recentComments = chatHistory
       .slice(-5) // 最新5件
-      .map(comment => `- ${comment.author}: ${comment.message}`)
+      .map((comment) => `- ${comment.author}: ${comment.message}`)
       .join('\n');
-    
+
     return `最近のコメント:
 ${recentComments}`;
   }
@@ -197,7 +195,7 @@ ${recentComments}`;
    */
   private generateExampleComments(): string[] {
     const examples: string[] = [];
-    
+
     // キャラクターペルソナとトーンに基づいた例を生成
     if (this.config.characterPersona.includes('初心者')) {
       examples.push(
@@ -206,7 +204,7 @@ ${recentComments}`;
         '勉強になります！メモしておきます'
       );
     }
-    
+
     if (this.config.tone === 'enthusiastic') {
       examples.push(
         'めちゃくちゃ面白い！最高です！',
@@ -214,25 +212,18 @@ ${recentComments}`;
         'ワクワクが止まりません！'
       );
     }
-    
+
     // 絵文字を含む例
     if (this.config.emojiPolicy.enabled && this.config.emojiPolicy.allowedEmojis.length > 0) {
       const emoji = this.config.emojiPolicy.allowedEmojis[0];
-      examples.push(
-        `いいですね${emoji}`,
-        `応援してます！${emoji}`
-      );
+      examples.push(`いいですね${emoji}`, `応援してます！${emoji}`);
     }
-    
+
     // デフォルトの例
     if (examples.length < 3) {
-      examples.push(
-        'これは興味深いですね',
-        'とても参考になります',
-        '次も楽しみにしています'
-      );
+      examples.push('これは興味深いですね', 'とても参考になります', '次も楽しみにしています');
     }
-    
+
     return examples.slice(0, 5); // 最大5つの例
   }
 }

@@ -39,13 +39,13 @@ export interface STTPort {
    * @throws STTError
    */
   transcribe(audio: Buffer): Promise<STTResult>;
-  
+
   /**
    * ストリーミングモードで音声をテキストに変換
    * @returns 書き込み可能なストリーム（音声入力）と読み取り可能なストリーム（テキスト出力）
    */
   startStreaming(): Writable & Readable;
-  
+
   /**
    * ヘルスチェック
    * @returns サービスが利用可能かどうか

@@ -1,9 +1,12 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import * as yaml from 'js-yaml';
+
 import { watch } from 'chokidar';
-import { AppConfig, AppConfigSchema, DEFAULT_CONFIG, ProviderConfigWithPriority } from './types';
+import * as yaml from 'js-yaml';
 import { z } from 'zod';
+
+import { AppConfig, AppConfigSchema, DEFAULT_CONFIG, ProviderConfigWithPriority } from './types';
+
 
 /**
  * 設定管理クラス
@@ -23,11 +26,11 @@ export class ConfigManager {
     try {
       // ファイルが存在するか確認
       await fs.access(this.configPath);
-      
+
       // YAMLファイルを読み込み
       const content = await fs.readFile(this.configPath, 'utf-8');
-      const rawConfig = yaml.load(content) as unknown;
-      
+      const rawConfig = yaml.load(content);
+
       // デフォルト設定とマージしてからバリデーション
       const merged = this.deepMerge(DEFAULT_CONFIG, rawConfig);
       this.config = AppConfigSchema.parse(merged);
@@ -43,7 +46,7 @@ export class ConfigManager {
         throw error;
       }
     }
-    
+
     return this.config;
   }
 
@@ -54,14 +57,14 @@ export class ConfigManager {
   async mergeConfig(updates: Record<string, any>): Promise<AppConfig> {
     // Deep merge with existing config
     const merged = this.deepMerge(this.config, updates);
-    
+
     // バリデーション
     const validated = AppConfigSchema.parse(merged);
-    
+
     // 保存
     await this.saveConfig(validated);
     this.config = validated;
-    
+
     return validated;
   }
 
@@ -74,7 +77,7 @@ export class ConfigManager {
       return {
         primary: sttConfig.primary,
         fallback: sttConfig.fallback,
-        priority: [sttConfig.primary, ...sttConfig.fallback]
+        priority: [sttConfig.primary, ...sttConfig.fallback],
       };
     } else {
       const llmConfig = this.config.providers.llm;
@@ -82,7 +85,7 @@ export class ConfigManager {
         primary: llmConfig.primary,
         model: llmConfig.model,
         fallback: [],
-        priority: [llmConfig.primary]
+        priority: [llmConfig.primary],
       };
     }
   }
@@ -102,12 +105,12 @@ export class ConfigManager {
     if (this.watcher) {
       this.watcher.close();
     }
-    
+
     this.watcher = watch(this.configPath, {
       persistent: true,
-      ignoreInitial: true
+      ignoreInitial: true,
     });
-    
+
     this.watcher.on('change', async () => {
       try {
         const newConfig = await this.loadConfig();
@@ -142,15 +145,15 @@ export class ConfigManager {
     // ディレクトリが存在しない場合は作成
     const dir = path.dirname(this.configPath);
     await fs.mkdir(dir, { recursive: true });
-    
+
     // YAMLとして保存
     const yamlContent = yaml.dump(config, {
       styles: {
-        '!!null': 'canonical'
+        '!!null': 'canonical',
       },
-      sortKeys: false
+      sortKeys: false,
     });
-    
+
     await fs.writeFile(this.configPath, yamlContent, 'utf-8');
   }
 
@@ -159,9 +162,9 @@ export class ConfigManager {
    */
   private deepMerge(target: any, source: any): any {
     const output = { ...target };
-    
+
     if (this.isObject(target) && this.isObject(source)) {
-      Object.keys(source).forEach(key => {
+      Object.keys(source).forEach((key) => {
         if (this.isObject(source[key])) {
           if (!(key in target)) {
             Object.assign(output, { [key]: source[key] });
@@ -173,7 +176,7 @@ export class ConfigManager {
         }
       });
     }
-    
+
     return output;
   }
 

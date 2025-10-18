@@ -1,6 +1,7 @@
 # Tsumiki for Cursor - AI駆動開発支援フレームワーク
 
-TsumikiのAITDD（AI-assisted Test-Driven Development）概念をCursor向けにアレンジしたフレームワークです。
+TsumikiのAITDD（AI-assisted Test-Driven
+Development）概念をCursor向けにアレンジしたフレームワークです。
 
 ## 概要
 
@@ -26,14 +27,16 @@ tsumiki-cursor/
 
 ## .spec-workflow 参照モード
 
-このリポジトリに `.spec-workflow/specs/` が存在する場合、tsumiki-cursor は内部の `docs/` を生成せず、既存の Spec 文書を参照します。
+このリポジトリに `.spec-workflow/specs/` が存在する場合、tsumiki-cursor は内部の `docs/`
+を生成せず、既存の Spec 文書を参照します。
 
 - 要件: `.spec-workflow/specs/<spec-name>/requirements.md`
 - 設計: `.spec-workflow/specs/<spec-name>/design.md`
 - タスク: `.spec-workflow/specs/<spec-name>/tasks.md`（チェックボックス形式）
 - テスト仕様: `.spec-workflow/specs/<spec-name>/tests/test_spec.md`（必要に応じて作成）
 
-スクリプト `scripts/kairo.sh` / `scripts/tdd.sh` / `scripts/reverse.sh` は、参照モード時に上記パスを案内します。
+スクリプト `scripts/kairo.sh` / `scripts/tdd.sh` / `scripts/reverse.sh`
+は、参照モード時に上記パスを案内します。
 
 ## 開発フロー
 
@@ -49,7 +52,9 @@ tsumiki-cursor/
 要件定義 → テストケース作成 → Red → Green → Refactor → 検証
 ```
 
-注: v0 では CLI の Red/Green/Refactor/Verify フェーズは廃止しました。以降はプロンプト駆動で実施してください（`.spec-workflow/specs/<spec-name>/tests/` 参照）。
+注:
+v0 では CLI の Red/Green/Refactor/Verify フェーズは廃止しました。以降はプロンプト駆動で実施してください（`.spec-workflow/specs/<spec-name>/tests/`
+参照）。
 
 ### 3. リバースエンジニアリング
 

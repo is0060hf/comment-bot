@@ -45,10 +45,10 @@ export class FailoverManager<T extends HealthCheckable> {
     if (providers.length === 0) {
       throw new Error('At least one provider is required');
     }
-    
+
     // 初期状態では全てのプロバイダを健全とみなす
     this.providerHealthStatus = new Array(providers.length).fill(true);
-    
+
     // 定期的なヘルスチェックを開始
     this.startHealthChecks();
   }
@@ -66,7 +66,7 @@ export class FailoverManager<T extends HealthCheckable> {
     // 健全なプロバイダから順に試行
     for (let attempt = 0; attempt < this.providers.length; attempt++) {
       const providerIndex = this.findNextHealthyProvider();
-      
+
       if (providerIndex === -1) {
         // 健全なプロバイダがない場合は全てを試す
         break;
@@ -78,7 +78,7 @@ export class FailoverManager<T extends HealthCheckable> {
       try {
         // 操作を実行
         const result = await operation(provider);
-        
+
         // 成功したらこのプロバイダを優先的に使用
         this.currentProviderIndex = providerIndex;
         return result;
@@ -102,7 +102,7 @@ export class FailoverManager<T extends HealthCheckable> {
     }
 
     // 全てのプロバイダが失敗
-    throw new Error(`All providers failed: ${errors.map(e => e.message).join(', ')}`);
+    throw new Error(`All providers failed: ${errors.map((e) => e.message).join(', ')}`);
   }
 
   /**
@@ -129,7 +129,7 @@ export class FailoverManager<T extends HealthCheckable> {
     return {
       index: this.currentProviderIndex,
       healthy: this.providerHealthStatus[this.currentProviderIndex] ?? false,
-      totalProviders: this.providers.length
+      totalProviders: this.providers.length,
     };
   }
 
@@ -168,7 +168,7 @@ export class FailoverManager<T extends HealthCheckable> {
    */
   private startHealthChecks(): void {
     this.healthCheckTimer = setInterval(() => {
-      this.checkHealth().catch(error => {
+      this.checkHealth().catch((error) => {
         console.error('Health check failed:', error);
       });
     }, this.config.healthCheckIntervalMs);
@@ -191,6 +191,6 @@ export class FailoverManager<T extends HealthCheckable> {
    * 指定時間待機
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -118,15 +118,17 @@ export interface LLMPort {
    * @throws LLMError
    */
   generateComment(context: CommentGenerationContext): Promise<CommentGenerationResult>;
-  
+
   /**
    * コメント機会を判定
    * @param context 判定コンテキスト
    * @returns 判定結果
    * @throws LLMError
    */
-  classifyCommentOpportunity(context: CommentOpportunityContext): Promise<CommentClassificationResult>;
-  
+  classifyCommentOpportunity(
+    context: CommentOpportunityContext
+  ): Promise<CommentClassificationResult>;
+
   /**
    * 汎用チャット
    * @param messages メッセージ履歴
@@ -135,7 +137,7 @@ export interface LLMPort {
    * @throws LLMError
    */
   chat(messages: LLMMessage[], options?: Record<string, unknown>): Promise<ChatResult>;
-  
+
   /**
    * ヘルスチェック
    * @returns サービスが利用可能かどうか

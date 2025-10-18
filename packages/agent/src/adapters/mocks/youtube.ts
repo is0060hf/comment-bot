@@ -1,9 +1,4 @@
-import {
-  YouTubePort,
-  LiveChatMessage,
-  YouTubeError,
-  RateLimitInfo
-} from '../../ports/youtube';
+import { YouTubePort, LiveChatMessage, YouTubeError, RateLimitInfo } from '../../ports/youtube';
 
 /**
  * MockYouTubeアダプタの設定
@@ -38,30 +33,20 @@ export class MockYouTubeAdapter implements YouTubePort {
       rateLimitExceeded: config.rateLimitExceeded ?? false,
       isLive: config.isLive ?? true,
       rateLimitWindowMs: config.rateLimitWindowMs ?? 30000, // 30秒
-      rateLimitMax: config.rateLimitMax ?? 30
+      rateLimitMax: config.rateLimitMax ?? 30,
     };
   }
 
   async postMessage(liveChatId: string, message: string): Promise<LiveChatMessage> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new YouTubeError(
-        'Mock YouTube API failure',
-        'MOCK_YOUTUBE_ERROR',
-        true,
-        500
-      );
+      throw new YouTubeError('Mock YouTube API failure', 'MOCK_YOUTUBE_ERROR', true, 500);
     }
 
     // レート制限チェック
     this.cleanupOldMessages();
     if (this.config.rateLimitExceeded || this.messageHistory.length >= this.config.rateLimitMax) {
-      throw new YouTubeError(
-        'Rate limit exceeded',
-        'RATE_LIMIT_EXCEEDED',
-        true,
-        429
-      );
+      throw new YouTubeError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED', true, 429);
     }
 
     // 文字数制限チェック（200文字）
@@ -86,36 +71,26 @@ export class MockYouTubeAdapter implements YouTubePort {
         liveChatId,
         publishedAt: new Date(timestamp).toISOString(),
         textMessageDetails: {
-          messageText: message
+          messageText: message,
         },
         authorDetails: {
           channelId: 'mock-channel-id',
           displayName: 'Comment Bot',
-          profileImageUrl: 'https://example.com/avatar.png'
-        }
-      }
+          profileImageUrl: 'https://example.com/avatar.png',
+        },
+      },
     };
   }
 
   async getLiveChatId(videoId: string): Promise<string> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new YouTubeError(
-        'Mock YouTube API failure',
-        'MOCK_YOUTUBE_ERROR',
-        true,
-        500
-      );
+      throw new YouTubeError('Mock YouTube API failure', 'MOCK_YOUTUBE_ERROR', true, 500);
     }
 
     // ライブ配信チェック
     if (!this.config.isLive) {
-      throw new YouTubeError(
-        'Video is not a live stream',
-        'NOT_LIVE_STREAM',
-        false,
-        400
-      );
+      throw new YouTubeError('Video is not a live stream', 'NOT_LIVE_STREAM', false, 400);
     }
 
     return `mock-live-chat-${videoId}`;
@@ -126,14 +101,14 @@ export class MockYouTubeAdapter implements YouTubePort {
 
     const now = Date.now();
     const resetAt = new Date(now + this.config.rateLimitWindowMs);
-    const remaining = this.config.rateLimitExceeded 
-      ? 0 
+    const remaining = this.config.rateLimitExceeded
+      ? 0
       : Math.max(0, this.config.rateLimitMax - this.messageHistory.length);
 
     const info: RateLimitInfo = {
       limit: this.config.rateLimitMax,
       remaining,
-      resetAt
+      resetAt,
     };
 
     // レート制限超過時は再試行時間を設定
@@ -154,6 +129,6 @@ export class MockYouTubeAdapter implements YouTubePort {
   private cleanupOldMessages(): void {
     const now = Date.now();
     const cutoff = now - this.config.rateLimitWindowMs;
-    this.messageHistory = this.messageHistory.filter(msg => msg.timestamp > cutoff);
+    this.messageHistory = this.messageHistory.filter((msg) => msg.timestamp > cutoff);
   }
 }

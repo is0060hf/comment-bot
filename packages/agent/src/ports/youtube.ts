@@ -65,7 +65,7 @@ export interface YouTubePort {
    * @throws YouTubeError
    */
   postMessage(liveChatId: string, message: string): Promise<LiveChatMessage>;
-  
+
   /**
    * 動画IDからライブチャットIDを取得
    * @param videoId YouTube動画ID
@@ -73,13 +73,13 @@ export interface YouTubePort {
    * @throws YouTubeError ライブ配信でない場合
    */
   getLiveChatId(videoId: string): Promise<string>;
-  
+
   /**
    * 現在のレート制限情報を取得
    * @returns レート制限情報
    */
   getRateLimitInfo(): Promise<RateLimitInfo>;
-  
+
   /**
    * ヘルスチェック
    * @returns サービスが利用可能かどうか

@@ -3,7 +3,7 @@ import {
   ModerationResult,
   ModerationError,
   ModerationCategory,
-  RewriteResult
+  RewriteResult,
 } from '../../ports/moderation';
 
 /**
@@ -31,13 +31,13 @@ export interface MockModerationConfig {
  */
 export class MockModerationAdapter implements ModerationPort {
   private readonly config: Required<MockModerationConfig>;
-  
+
   // テスト用の不適切キーワード
   private inappropriatePatterns = [
     { pattern: /\[暴力/, category: 'violence' as ModerationCategory, score: 0.8 },
     { pattern: /\[ハラスメント/, category: 'harassment' as ModerationCategory, score: 0.75 },
     { pattern: /\[不適切/, category: 'hate' as ModerationCategory, score: 0.7 },
-    { pattern: /\[性的/, category: 'sexual' as ModerationCategory, score: 0.85 }
+    { pattern: /\[性的/, category: 'sexual' as ModerationCategory, score: 0.85 },
   ];
 
   constructor(config: MockModerationConfig = {}) {
@@ -48,41 +48,33 @@ export class MockModerationAdapter implements ModerationPort {
       rewriteProbability: config.rewriteProbability ?? 0.2,
       shouldFail: config.shouldFail ?? false,
       isHealthy: config.isHealthy ?? true,
-      inappropriatePatterns: config.inappropriatePatterns ?? []
+      inappropriatePatterns: config.inappropriatePatterns ?? [],
     };
-    
+
     // カスタム不適切パターンを追加
     if (config.inappropriatePatterns) {
-      config.inappropriatePatterns.forEach(pattern => {
+      config.inappropriatePatterns.forEach((pattern) => {
         this.inappropriatePatterns.push({
           pattern: new RegExp(pattern),
           category: 'hate' as ModerationCategory,
-          score: 0.9
+          score: 0.9,
         });
       });
     }
   }
 
-  async moderate(content: string, context?: Record<string, unknown>): Promise<ModerationResult> {
+  async moderate(content: string, _context?: Record<string, unknown>): Promise<ModerationResult> {
     // モックレイテンシをシミュレート（1-10ms）
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 10 + 1));
-    
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 10 + 1));
+
     // 必ず失敗フラグが立っている場合
     if (this.config.shouldFail) {
-      throw new ModerationError(
-        'Mock moderation service failure',
-        'MOCK_MODERATION_ERROR',
-        true
-      );
+      throw new ModerationError('Mock moderation service failure', 'MOCK_MODERATION_ERROR', true);
     }
-    
+
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new ModerationError(
-        'Mock moderation service failure',
-        'MOCK_MODERATION_ERROR',
-        true
-      );
+      throw new ModerationError('Mock moderation service failure', 'MOCK_MODERATION_ERROR', true);
     }
 
     // 空コンテンツは安全
@@ -92,7 +84,7 @@ export class MockModerationAdapter implements ModerationPort {
         categories: {},
         scores: {},
         requiresRewrite: false,
-        suggestedAction: 'pass'
+        suggestedAction: 'pass',
       };
     }
 
@@ -129,31 +121,23 @@ export class MockModerationAdapter implements ModerationPort {
       categories,
       scores,
       requiresRewrite,
-      suggestedAction
+      suggestedAction,
     };
   }
 
   async moderateBatch(contents: string[]): Promise<ModerationResult[]> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new ModerationError(
-        'Mock moderation batch failure',
-        'MOCK_MODERATION_ERROR',
-        true
-      );
+      throw new ModerationError('Mock moderation batch failure', 'MOCK_MODERATION_ERROR', true);
     }
 
-    return Promise.all(contents.map(content => this.moderate(content)));
+    return Promise.all(contents.map((content) => this.moderate(content)));
   }
 
-  async rewriteContent(content: string, guidelines?: string[]): Promise<RewriteResult> {
+  async rewriteContent(content: string, _guidelines?: string[]): Promise<RewriteResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new ModerationError(
-        'Mock rewrite failure',
-        'MOCK_MODERATION_ERROR',
-        true
-      );
+      throw new ModerationError('Mock rewrite failure', 'MOCK_MODERATION_ERROR', true);
     }
 
     // 安全なコンテンツはそのまま返す
@@ -163,7 +147,7 @@ export class MockModerationAdapter implements ModerationPort {
         rewritten: false,
         rewrittenContent: content,
         changes: 0,
-        reasons: []
+        reasons: [],
       };
     }
 
@@ -191,7 +175,7 @@ export class MockModerationAdapter implements ModerationPort {
     // その他の一般的な置換
     const replacements = [
       { from: '不適切', to: '適切', reason: '不適切な表現を修正' },
-      { from: '微妙', to: '良い', reason: '曖昧な表現を改善' }
+      { from: '微妙', to: '良い', reason: '曖昧な表現を改善' },
     ];
 
     for (const { from, to, reason } of replacements) {
@@ -202,11 +186,11 @@ export class MockModerationAdapter implements ModerationPort {
       }
     }
 
-    return { 
+    return {
       rewritten: changes > 0,
       rewrittenContent: rewritten,
       changes,
-      reasons
+      reasons,
     };
   }
 

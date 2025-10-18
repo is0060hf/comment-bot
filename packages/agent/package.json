@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Comment bot local agent for live streaming",
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "build": "tsc",
     "test": "jest --bail --forceExit",
@@ -11,18 +10,24 @@
     "test:coverage": "jest --coverage --bail --forceExit",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
-    "auth:youtube": "tsx scripts/youtube-auth.ts"
+    "auth:youtube": "tsx scripts/youtube-auth.ts",
+    "cli": "ts-node --project tsconfig.cli.json bin/comment-bot"
+  },
+  "bin": {
+    "comment-bot": "./bin/comment-bot"
   },
   "keywords": ["youtube", "live", "comment", "bot"],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@comment-bot/shared": "^1.0.0",
     "chokidar": "^3.6.0",
     "dotenv": "^16.4.5",
     "googleapis": "^128.0.0",
     "js-yaml": "^4.1.0",
     "open": "^10.0.0",
     "winston": "^3.11.0",
+    "yaml": "^2.3.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {

@@ -12,24 +12,24 @@ describe('FailoverManager', () => {
       {
         transcribe: jest.fn<STTPort['transcribe']>(),
         startStreaming: jest.fn<STTPort['startStreaming']>(),
-        isHealthy: jest.fn<STTPort['isHealthy']>()
+        isHealthy: jest.fn<STTPort['isHealthy']>(),
       },
       {
         transcribe: jest.fn<STTPort['transcribe']>(),
         startStreaming: jest.fn<STTPort['startStreaming']>(),
-        isHealthy: jest.fn<STTPort['isHealthy']>()
+        isHealthy: jest.fn<STTPort['isHealthy']>(),
       },
       {
         transcribe: jest.fn<STTPort['transcribe']>(),
         startStreaming: jest.fn<STTPort['startStreaming']>(),
-        isHealthy: jest.fn<STTPort['isHealthy']>()
-      }
+        isHealthy: jest.fn<STTPort['isHealthy']>(),
+      },
     ];
 
     manager = new FailoverManager(mockProviders, {
       maxRetries: 3,
       retryDelayMs: 100,
-      healthCheckIntervalMs: 5000
+      healthCheckIntervalMs: 5000,
     });
   });
 
@@ -44,13 +44,13 @@ describe('FailoverManager', () => {
         transcript: 'test',
         confidence: 0.9,
         language: 'ja',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       mockProviders[0]!.transcribe.mockResolvedValueOnce(expectedResult);
 
-      const result = await manager.execute(
-        async (provider) => provider.transcribe(Buffer.from('test'))
+      const result = await manager.execute(async (provider) =>
+        provider.transcribe(Buffer.from('test'))
       );
 
       expect(result).toEqual(expectedResult);
@@ -64,7 +64,7 @@ describe('FailoverManager', () => {
         transcript: 'fallback',
         confidence: 0.85,
         language: 'ja',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       // 最初のプロバイダは失敗
@@ -75,8 +75,8 @@ describe('FailoverManager', () => {
       // 2番目のプロバイダは成功
       mockProviders[1]!.transcribe.mockResolvedValueOnce(expectedResult);
 
-      const result = await manager.execute(
-        async (provider) => provider.transcribe(Buffer.from('test'))
+      const result = await manager.execute(async (provider) =>
+        provider.transcribe(Buffer.from('test'))
       );
 
       expect(result).toEqual(expectedResult);
@@ -128,13 +128,13 @@ describe('FailoverManager', () => {
         transcript: 'provider2',
         confidence: 0.9,
         language: 'ja',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       mockProviders[1]!.transcribe.mockResolvedValueOnce(expectedResult);
 
-      const result = await manager.execute(
-        async (provider) => provider.transcribe(Buffer.from('test'))
+      const result = await manager.execute(async (provider) =>
+        provider.transcribe(Buffer.from('test'))
       );
 
       expect(result).toEqual(expectedResult);
@@ -156,13 +156,13 @@ describe('FailoverManager', () => {
         transcript: 'recovered',
         confidence: 0.95,
         language: 'ja',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       mockProviders[0]!.transcribe.mockResolvedValueOnce(expectedResult);
 
-      const result = await manager.execute(
-        async (provider) => provider.transcribe(Buffer.from('test'))
+      const result = await manager.execute(async (provider) =>
+        provider.transcribe(Buffer.from('test'))
       );
 
       expect(result).toEqual(expectedResult);
@@ -177,7 +177,7 @@ describe('FailoverManager', () => {
       expect(info).toEqual({
         index: 0,
         healthy: true,
-        totalProviders: 3
+        totalProviders: 3,
       });
     });
   });

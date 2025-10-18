@@ -1,5 +1,5 @@
-import { ModerationPort, ModerationResult, ModerationError } from '../ports/moderation';
 import { SafetyConfig } from '../config/types';
+import { ModerationPort, ModerationResult } from '../ports/moderation';
 
 /**
  * モデレーションマネージャーの設定
@@ -70,20 +70,20 @@ export class ModerationManager {
   private fallback: ModerationPort;
   private config: SafetyConfig;
   private customThresholds?: ModerationThresholds;
-  
+
   // 統計情報
   private stats: ModerationStatistics = {
     totalRequests: 0,
     flaggedCount: 0,
     primaryFailures: 0,
     fallbackUsage: 0,
-    averageLatency: 0
+    averageLatency: 0,
   };
-  
+
   // ヘルス情報
   private healthStatus: HealthStatus = {
     primary: { healthy: true, lastChecked: new Date() },
-    fallback: { healthy: true, lastChecked: new Date() }
+    fallback: { healthy: true, lastChecked: new Date() },
   };
 
   constructor(config: ModerationManagerConfig) {
@@ -95,54 +95,55 @@ export class ModerationManager {
   /**
    * 閾値ベースでコンテンツをモデレート
    */
-  async moderateWithThresholds(content: string, context?: Record<string, unknown>): Promise<ModerationResult> {
+  async moderateWithThresholds(
+    content: string,
+    context?: Record<string, unknown>
+  ): Promise<ModerationResult> {
     const startTime = Date.now();
     this.stats.totalRequests++;
-    
+
     try {
       // プライマリアダプタで試行
       const result = await this.primary.moderate(content, context);
-      
+
       // 閾値に基づいて再評価
       const adjustedResult = this.applyThresholds(result);
-      
+
       if (adjustedResult.flagged) {
         this.stats.flaggedCount++;
       }
-      
+
       this.updateLatency(Date.now() - startTime);
       return adjustedResult;
-      
     } catch (primaryError) {
       this.stats.primaryFailures++;
       console.error('Primary moderation failed:', primaryError);
-      
+
       try {
         // フォールバックアダプタで試行
         this.stats.fallbackUsage++;
         const result = await this.fallback.moderate(content, context);
-        
+
         const adjustedResult = this.applyThresholds(result);
-        
+
         if (adjustedResult.flagged) {
           this.stats.flaggedCount++;
         }
-        
+
         this.updateLatency(Date.now() - startTime);
         return adjustedResult;
-        
       } catch (fallbackError) {
         console.error('Fallback moderation also failed:', fallbackError);
-        
+
         // 両方失敗した場合
         this.updateLatency(Date.now() - startTime);
-        
+
         return {
           flagged: this.config.blockOnUncertainty,
           categories: {},
           scores: {},
           suggestedAction: this.config.blockOnUncertainty ? 'block' : 'pass',
-          error: 'All moderation services failed'
+          error: 'All moderation services failed',
         };
       }
     }
@@ -155,12 +156,10 @@ export class ModerationManager {
     try {
       // プライマリアダプタがバッチ対応の場合
       const results = await this.primary.moderateBatch(contents);
-      return results.map(result => this.applyThresholds(result));
+      return results.map((result) => this.applyThresholds(result));
     } catch (error) {
       // フォールバックまたは個別処理
-      return Promise.all(
-        contents.map(content => this.moderateWithThresholds(content))
-      );
+      return Promise.all(contents.map((content) => this.moderateWithThresholds(content)));
     }
   }
 
@@ -173,25 +172,25 @@ export class ModerationManager {
   ): Promise<ModerationAndRewriteResult> {
     // まずモデレート
     const moderationResult = await this.moderateWithThresholds(content);
-    
+
     const result: ModerationAndRewriteResult = {
       originalFlagged: moderationResult.flagged,
-      rewritten: false
+      rewritten: false,
     };
-    
+
     // フラグされていない場合はそのまま返す
     if (!moderationResult.flagged) {
       return result;
     }
-    
+
     // リライトを試行
     try {
       const rewriteResult = await this.primary.rewriteContent(content, guidelines);
-      
+
       if (rewriteResult.rewritten && rewriteResult.rewrittenContent) {
         result.rewritten = true;
         result.rewrittenContent = rewriteResult.rewrittenContent;
-        
+
         // リライト後のコンテンツも検証
         const rewrittenModeration = await this.moderateWithThresholds(
           rewriteResult.rewrittenContent
@@ -201,7 +200,7 @@ export class ModerationManager {
     } catch (error) {
       result.error = 'Rewriting failed';
     }
-    
+
     return result;
   }
 
@@ -238,31 +237,31 @@ export class ModerationManager {
       const primaryHealthy = await this.primary.isHealthy();
       this.healthStatus.primary = {
         healthy: primaryHealthy,
-        lastChecked: new Date()
+        lastChecked: new Date(),
       };
     } catch (error) {
       this.healthStatus.primary = {
         healthy: false,
         lastChecked: new Date(),
-        error: String(error)
+        error: String(error),
       };
     }
-    
+
     // フォールバックのヘルスチェック
     try {
       const fallbackHealthy = await this.fallback.isHealthy();
       this.healthStatus.fallback = {
         healthy: fallbackHealthy,
-        lastChecked: new Date()
+        lastChecked: new Date(),
       };
     } catch (error) {
       this.healthStatus.fallback = {
         healthy: false,
         lastChecked: new Date(),
-        error: String(error)
+        error: String(error),
       };
     }
-    
+
     return { ...this.healthStatus };
   }
 
@@ -280,7 +279,7 @@ export class ModerationManager {
     const thresholds = this.getThresholds();
     const adjustedCategories: string[] = [];
     let flagged = false;
-    
+
     if (result.scores) {
       for (const [category, score] of Object.entries(result.scores)) {
         const threshold = thresholds[category as keyof ModerationThresholds];
@@ -290,12 +289,13 @@ export class ModerationManager {
         }
       }
     }
-    
+
     return {
       ...result,
       flagged: flagged || result.flagged,
       categories: result.categories,
-      flaggedCategories: adjustedCategories.length > 0 ? adjustedCategories : result.flaggedCategories
+      flaggedCategories:
+        adjustedCategories.length > 0 ? adjustedCategories : result.flaggedCategories,
     };
   }
 
@@ -310,21 +310,21 @@ export class ModerationManager {
       violence: 0.7,
       selfHarm: 0.8,
       illegal: 0.8,
-      graphic: 0.8
+      graphic: 0.8,
     };
-    
+
     // セーフティレベルに応じて調整
     switch (this.config.level) {
       case 'strict':
         return Object.fromEntries(
           Object.entries(baseThresholds).map(([key, value]) => [key, value - 0.2])
         ) as Required<ModerationThresholds>;
-        
+
       case 'relaxed':
         return Object.fromEntries(
           Object.entries(baseThresholds).map(([key, value]) => [key, Math.min(0.9, value + 0.2)])
         ) as Required<ModerationThresholds>;
-        
+
       default: // standard
         return baseThresholds;
     }
@@ -339,9 +339,7 @@ export class ModerationManager {
   ): Required<ModerationThresholds> {
     return {
       ...base,
-      ...Object.fromEntries(
-        Object.entries(custom).filter(([_, value]) => value !== undefined)
-      )
+      ...Object.fromEntries(Object.entries(custom).filter(([_, value]) => value !== undefined)),
     } as Required<ModerationThresholds>;
   }
 

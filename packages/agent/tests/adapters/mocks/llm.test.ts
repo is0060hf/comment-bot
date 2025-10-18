@@ -19,8 +19,8 @@ describe('MockLLMAdapter', () => {
           tone: 'friendly',
           characterPersona: '好奇心旺盛な初心者',
           encouragedExpressions: ['なるほど', 'すごい'],
-          targetLength: { min: 20, max: 60 }
-        }
+          targetLength: { min: 20, max: 60 },
+        },
       };
 
       const result = await adapter.generateComment(context);
@@ -42,8 +42,8 @@ describe('MockLLMAdapter', () => {
           tone: 'professional',
           characterPersona: 'エンジニア',
           encouragedExpressions: ['実装', '設計', 'アーキテクチャ'],
-          targetLength: { min: 20, max: 60 }
-        }
+          targetLength: { min: 20, max: 60 },
+        },
       };
 
       const result = await adapter.generateComment(context);
@@ -61,8 +61,8 @@ describe('MockLLMAdapter', () => {
           tone: 'friendly',
           characterPersona: 'test',
           encouragedExpressions: [],
-          targetLength: { min: 20, max: 60 }
-        }
+          targetLength: { min: 20, max: 60 },
+        },
       };
 
       await expect(failingAdapter.generateComment(context)).rejects.toThrow(LLMError);
@@ -74,7 +74,7 @@ describe('MockLLMAdapter', () => {
       const context = {
         transcript: '皆さん、どう思いますか？コメントで教えてください！',
         recentTopics: ['質問', '意見募集'],
-        engagementLevel: 0.8
+        engagementLevel: 0.8,
       };
 
       const result = await adapter.classifyCommentOpportunity(context);
@@ -87,7 +87,7 @@ describe('MockLLMAdapter', () => {
       const context = {
         transcript: 'それでは次のスライドに移ります...',
         recentTopics: ['説明', '解説'],
-        engagementLevel: 0.3
+        engagementLevel: 0.3,
       };
 
       const result = await adapter.classifyCommentOpportunity(context);
@@ -100,7 +100,7 @@ describe('MockLLMAdapter', () => {
       const context = {
         transcript: 'これについては後ほど詳しく説明しますが...',
         recentTopics: ['予告', '準備'],
-        engagementLevel: 0.5
+        engagementLevel: 0.5,
       };
 
       const result = await adapter.classifyCommentOpportunity(context);
@@ -113,7 +113,7 @@ describe('MockLLMAdapter', () => {
     it('should handle chat conversation', async () => {
       const messages: LLMMessage[] = [
         { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: 'Hello, how are you?' }
+        { role: 'user', content: 'Hello, how are you?' },
       ];
 
       const result = await adapter.chat(messages);

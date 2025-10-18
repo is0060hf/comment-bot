@@ -1,6 +1,7 @@
 # Project Structure (comment-bot)
 
 ## Directory Organization
+
 ```
 comment-bot/
   doc/
@@ -20,13 +21,16 @@ comment-bot/
 - `.spec-workflow`: 本ワークフロー定義（steering/specs等）
 
 ## Naming Conventions
+
 - ディレクトリ/ファイルは機能単位で整理、型は`shared/src/types`に集約
 
 ## Import Patterns
+
 - ワークスペースの絶対インポート（tsconfig.base.jsonのpathsで定義）
 - UIはServer Components優先、外部APIはサーバー側のみ
 
 ## Code Organization Principles
+
 1. Single Responsibility: 1ファイル1責務
 2. Modularity: 再利用可能モジュール化
 3. Testability: モック可能な設計

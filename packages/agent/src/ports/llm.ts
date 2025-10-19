@@ -99,8 +99,9 @@ export interface ChatResult {
 export class LLMError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
-    public readonly retryable: boolean = true
+    public readonly isRetryable: boolean,
+    public readonly provider: string,
+    public readonly originalError?: Error
   ) {
     super(message);
     this.name = 'LLMError';

@@ -28,15 +28,17 @@
       "@comment-bot/shared/*": ["./packages/shared/src/*"]
     }
   },
-  "include": ["packages/*/src/**/*", "packages/*/tests/**/*"],
+  "include": [],
   "exclude": [
     "node_modules",
-    "dist",
+    "**/dist",
     "build",
     ".next",
     "coverage",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "packages/agent/scripts/**/*",
+    "packages/*/tests/**/*"
   ],
   "references": [
     { "path": "./packages/shared" },

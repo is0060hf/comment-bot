@@ -1,14 +1,15 @@
 /**
  * モデレーションカテゴリ
  */
-export type ModerationCategory =
-  | 'hate'
-  | 'harassment'
-  | 'self-harm'
-  | 'sexual'
-  | 'violence'
-  | 'illegal'
-  | 'graphic';
+export enum ModerationCategory {
+  HATE = 'hate',
+  HARASSMENT = 'harassment',
+  SELF_HARM = 'self-harm',
+  SEXUAL = 'sexual',
+  VIOLENCE = 'violence',
+  ILLEGAL = 'illegal',
+  GRAPHIC = 'graphic',
+}
 
 /**
  * モデレーション結果
@@ -16,16 +17,20 @@ export type ModerationCategory =
 export interface ModerationResult {
   /** フラグ済み（不適切）かどうか */
   flagged: boolean;
-  /** カテゴリ別のフラグ */
-  categories: Partial<Record<ModerationCategory, boolean>>;
   /** カテゴリ別のスコア (0-1) */
-  scores: Partial<Record<ModerationCategory, number>>;
-  /** フラグされたカテゴリ（内部使用） */
-  flaggedCategories?: string[];
-  /** リライトが必要かどうか */
-  requiresRewrite?: boolean;
+  scores: {
+    hate: number;
+    harassment: number;
+    selfHarm: number;
+    sexual: number;
+    violence: number;
+    illegal: number;
+    graphic: number;
+  };
+  /** フラグされたカテゴリ */
+  flaggedCategories: ModerationCategory[];
   /** 推奨アクション */
-  suggestedAction?: 'block' | 'rewrite' | 'pass';
+  suggestedAction: 'approve' | 'review' | 'block' | 'rewrite';
   /** エラー情報 */
   error?: string;
 }
@@ -34,14 +39,12 @@ export interface ModerationResult {
  * リライト結果
  */
 export interface RewriteResult {
-  /** リライト成功かどうか */
-  rewritten: boolean;
+  /** 元のコンテンツ */
+  original: string;
   /** リライト後のコンテンツ */
-  rewrittenContent?: string;
-  /** 変更箇所数 */
-  changes?: number;
-  /** 変更理由 */
-  reasons?: string[];
+  rewritten: string;
+  /** リライトされたかどうか */
+  wasRewritten: boolean;
 }
 
 /**
@@ -50,8 +53,9 @@ export interface RewriteResult {
 export class ModerationError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
-    public readonly retryable: boolean = true
+    public readonly isRetryable: boolean,
+    public readonly provider: string,
+    public readonly originalError?: Error
   ) {
     super(message);
     this.name = 'ModerationError';
@@ -69,7 +73,7 @@ export interface ModerationPort {
    * @returns モデレーション結果
    * @throws ModerationError
    */
-  moderate(content: string, context?: Record<string, unknown>): Promise<ModerationResult>;
+  moderate(content: string, context?: string): Promise<ModerationResult>;
 
   /**
    * 複数のコンテンツを一括モデレート
@@ -83,10 +87,11 @@ export interface ModerationPort {
    * 不適切なコンテンツをリライト
    * @param content リライト対象のコンテンツ
    * @param guidelines リライトガイドライン
+   * @param context オプションのコンテキスト情報
    * @returns リライト結果
    * @throws ModerationError
    */
-  rewriteContent(content: string, guidelines?: string[]): Promise<RewriteResult>;
+  rewriteContent(content: string, guidelines: string, context?: string): Promise<RewriteResult>;
 
   /**
    * ヘルスチェック

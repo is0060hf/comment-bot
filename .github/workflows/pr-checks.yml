@@ -1,0 +1,135 @@
+# Tsumiki AITDD - Refactor Phase
+# タスク48: Pull Requestチェック設定
+
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # ラベル付け
+  label:
+    name: Auto Label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v4
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # コミットメッセージのチェック
+  commitlint:
+    name: Commit Message Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        run: |
+          echo "Checking commit message format..."
+          # 簡易的なコミットメッセージチェック
+          git log --format=%s origin/${{ github.base_ref }}..HEAD | while read commit; do
+            if [[ ! "$commit" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: ]]; then
+              echo "Invalid commit message: $commit"
+              echo "Commit messages should follow conventional commits format"
+              exit 1
+            fi
+          done
+
+  # ファイルサイズチェック
+  file-size:
+    name: File Size Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file sizes
+        run: |
+          # 大きすぎるファイルをチェック（10MB以上）
+          find . -type f -size +10M | grep -v node_modules | grep -v .git > large_files.txt || true
+          if [ -s large_files.txt ]; then
+            echo "Large files detected:"
+            cat large_files.txt
+            exit 1
+          fi
+
+  # ライセンスチェック
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-3-Clause;BSD-2-Clause;ISC;0BSD'
+        continue-on-error: true
+
+  # コードカバレッジチェック
+  coverage:
+    name: Code Coverage Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:agent -- --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./packages/agent/coverage
+          flags: agent
+          fail_ci_if_error: false
+
+  # PR説明の確認
+  pr-description:
+    name: PR Description Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr.body || pr.body.trim().length < 50) {
+              core.setFailed('PR description is too short. Please provide a detailed description of your changes.');
+            }
+            
+            // チェックリストの確認
+            const checklist = [
+              '- [ ] Tests added/updated',
+              '- [ ] Documentation updated',
+              '- [ ] No breaking changes'
+            ];
+            
+            const hasChecklist = checklist.some(item => pr.body.includes(item));
+            if (!hasChecklist) {
+              core.warning('PR description should include a checklist');
+            }

@@ -1,0 +1,122 @@
+# Vercel設定テスト用ワークフロー
+name: Test Vercel Setup
+
+on:
+  workflow_dispatch:  # 手動実行用
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  test-vercel-secrets:
+    name: Test Vercel Secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # 5分でタイムアウト
+    steps:
+      - name: Check Secrets
+        run: |
+          echo "Checking if secrets are set..."
+          
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "❌ VERCEL_TOKEN is not set"
+            exit 1
+          else
+            echo "✅ VERCEL_TOKEN is set"
+          fi
+          
+          if [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "❌ VERCEL_ORG_ID is not set"
+            exit 1
+          else
+            echo "✅ VERCEL_ORG_ID is set"
+            echo "   Value: ${{ secrets.VERCEL_ORG_ID }}"
+          fi
+          
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "❌ VERCEL_PROJECT_ID is not set"
+            exit 1
+          else
+            echo "✅ VERCEL_PROJECT_ID is set"
+            echo "   Value: ${{ secrets.VERCEL_PROJECT_ID }}"
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: |
+          npm install -g vercel@latest
+          vercel --version
+
+      - name: Test Vercel Connection
+        timeout-minutes: 2
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          cd packages/web
+          
+          # プロジェクト情報を取得（タイムアウト付き）
+          echo "Testing Vercel project connection..."
+          
+          # vercel pullコマンドをテスト
+          if timeout 30s vercel pull --yes --environment=preview --token=$VERCEL_TOKEN; then
+            echo "✅ Successfully connected to Vercel project"
+          else
+            echo "❌ Failed to connect to Vercel project"
+            exit 1
+          fi
+          
+          # プロジェクト情報を表示
+          echo "Project configuration:"
+          cat .vercel/project.json || echo "No project.json found"
+
+  test-deployment:
+    name: Test Preview Deployment
+    runs-on: ubuntu-latest
+    needs: test-vercel-secrets
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Test Vercel Deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          cd packages/web
+          npx vercel --token=$VERCEL_TOKEN --yes --archive=tgz > deployment-url.txt
+          
+          echo "Deployment URL:"
+          cat deployment-url.txt
+          
+          # URLを抽出
+          DEPLOYMENT_URL=$(cat deployment-url.txt | grep "https://" | tail -1)
+          echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_ENV
+          
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            echo "❌ Failed to get deployment URL"
+            exit 1
+          fi
+          
+          echo "✅ Preview deployment successful: $DEPLOYMENT_URL"

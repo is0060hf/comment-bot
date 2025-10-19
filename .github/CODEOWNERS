@@ -1,0 +1,28 @@
+# Tsumiki AITDD - Refactor Phase
+# タスク48: コードオーナー設定
+
+# デフォルトのコードオーナー
+* @yourusername
+
+# パッケージごとのオーナー
+/packages/agent/ @yourusername
+/packages/web/ @yourusername
+/packages/shared/ @yourusername
+
+# 重要な設定ファイル
+/.github/ @yourusername
+/package.json @yourusername
+/tsconfig.json @yourusername
+/.eslintrc* @yourusername
+/.prettierrc* @yourusername
+
+# ドキュメント
+/doc/ @yourusername
+/.spec-workflow/ @yourusername
+/README.md @yourusername
+
+# セキュリティ関連
+/packages/agent/src/adapters/openai-moderation.ts @yourusername
+/packages/agent/src/core/moderation-manager.ts @yourusername
+/packages/agent/src/youtube/auth.ts @yourusername
+/.env.example @yourusername

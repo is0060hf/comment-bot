@@ -1,5 +1,5 @@
 import { SafetyConfig } from '../config/types';
-import { ModerationPort, ModerationResult } from '../ports/moderation';
+import { ModerationPort, ModerationResult, ModerationCategory } from '../ports/moderation';
 
 /**
  * モデレーションマネージャーの設定
@@ -97,7 +97,7 @@ export class ModerationManager {
    */
   async moderateWithThresholds(
     content: string,
-    context?: Record<string, unknown>
+    context?: string
   ): Promise<ModerationResult> {
     const startTime = Date.now();
     this.stats.totalRequests++;
@@ -140,9 +140,17 @@ export class ModerationManager {
 
         return {
           flagged: this.config.blockOnUncertainty,
-          categories: {},
-          scores: {},
-          suggestedAction: this.config.blockOnUncertainty ? 'block' : 'pass',
+          scores: {
+            hate: 0,
+            harassment: 0,
+            selfHarm: 0,
+            sexual: 0,
+            violence: 0,
+            illegal: 0,
+            graphic: 0,
+          },
+          flaggedCategories: [],
+          suggestedAction: this.config.blockOnUncertainty ? 'block' : 'approve',
           error: 'All moderation services failed',
         };
       }
@@ -168,7 +176,7 @@ export class ModerationManager {
    */
   async moderateAndRewrite(
     content: string,
-    guidelines?: string[]
+    guidelines: string = 'Keep the content safe and appropriate'
   ): Promise<ModerationAndRewriteResult> {
     // まずモデレート
     const moderationResult = await this.moderateWithThresholds(content);
@@ -187,13 +195,13 @@ export class ModerationManager {
     try {
       const rewriteResult = await this.primary.rewriteContent(content, guidelines);
 
-      if (rewriteResult.rewritten && rewriteResult.rewrittenContent) {
+      if (rewriteResult.wasRewritten) {
         result.rewritten = true;
-        result.rewrittenContent = rewriteResult.rewrittenContent;
+        result.rewrittenContent = rewriteResult.rewritten;
 
         // リライト後のコンテンツも検証
         const rewrittenModeration = await this.moderateWithThresholds(
-          rewriteResult.rewrittenContent
+          rewriteResult.rewritten
         );
         result.rewrittenFlagged = rewrittenModeration.flagged;
       }
@@ -277,14 +285,19 @@ export class ModerationManager {
    */
   private applyThresholds(result: ModerationResult): ModerationResult {
     const thresholds = this.getThresholds();
-    const adjustedCategories: string[] = [];
+    const adjustedCategories: ModerationCategory[] = [];
     let flagged = false;
 
     if (result.scores) {
       for (const [category, score] of Object.entries(result.scores)) {
         const threshold = thresholds[category as keyof ModerationThresholds];
         if (threshold !== undefined && score >= threshold) {
-          adjustedCategories.push(category);
+          // Map string to ModerationCategory enum
+          const enumKey = category === 'selfHarm' ? 'SELF_HARM' : category.toUpperCase();
+          const categoryEnum = ModerationCategory[enumKey as keyof typeof ModerationCategory];
+          if (categoryEnum) {
+            adjustedCategories.push(categoryEnum);
+          }
           flagged = true;
         }
       }
@@ -293,7 +306,6 @@ export class ModerationManager {
     return {
       ...result,
       flagged: flagged || result.flagged,
-      categories: result.categories,
       flaggedCategories:
         adjustedCategories.length > 0 ? adjustedCategories : result.flaggedCategories,
     };

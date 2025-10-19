@@ -141,13 +141,19 @@ export class ConfigManager {
   /**
    * 設定をファイルに保存
    */
-  private async saveConfig(config: AppConfig): Promise<void> {
+  async saveConfig(config: Partial<AppConfig>): Promise<void> {
+    // 現在の設定とマージ（部分更新を可能にする）
+    const mergedConfig = this.deepMerge(DEFAULT_CONFIG, config);
+    
+    // バリデーション
+    const validatedConfig = AppConfigSchema.parse(mergedConfig);
+    
     // ディレクトリが存在しない場合は作成
     const dir = path.dirname(this.configPath);
     await fs.mkdir(dir, { recursive: true });
 
     // YAMLとして保存
-    const yamlContent = yaml.dump(config, {
+    const yamlContent = yaml.dump(validatedConfig, {
       styles: {
         '!!null': 'canonical',
       },
@@ -155,6 +161,16 @@ export class ConfigManager {
     });
 
     await fs.writeFile(this.configPath, yamlContent, 'utf-8');
+    
+    // キャッシュを更新
+    this.config = validatedConfig;
+  }
+
+  /**
+   * 設定のバリデーション
+   */
+  validateConfig(config: AppConfig): void {
+    AppConfigSchema.parse(config);
   }
 
   /**

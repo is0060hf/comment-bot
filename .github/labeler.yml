@@ -1,0 +1,68 @@
+# Tsumiki AITDD - Refactor Phase
+# タスク48: 自動ラベル設定
+
+# パッケージごとのラベル
+agent:
+  - packages/agent/**/*
+
+web:
+  - packages/web/**/*
+
+shared:
+  - packages/shared/**/*
+
+# 技術スタックごとのラベル
+typescript:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/tsconfig*.json'
+
+react:
+  - packages/web/**/*.tsx
+  - packages/web/**/*.jsx
+
+nextjs:
+  - packages/web/app/**/*
+  - packages/web/pages/**/*
+  - packages/web/next.config.js
+
+# 設定・インフラ
+ci/cd:
+  - .github/workflows/**/*
+  - .github/actions/**/*
+
+config:
+  - '**/*.config.js'
+  - '**/*.config.ts'
+  - '**/config/**/*'
+  - .eslintrc*
+  - .prettierrc*
+  - jest.config.*
+
+# ドキュメント
+documentation:
+  - '**/*.md'
+  - doc/**/*
+  - .spec-workflow/**/*.md
+
+# テスト
+test:
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - '**/*.spec.tsx'
+  - '**/tests/**/*'
+  - '**/__tests__/**/*'
+
+# セキュリティ
+security:
+  - '**/auth/**/*'
+  - '**/moderation/**/*'
+  - .env.example
+
+# 依存関係
+dependencies:
+  - package.json
+  - packages/*/package.json
+  - package-lock.json
+  - yarn.lock

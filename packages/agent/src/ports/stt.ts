@@ -1,4 +1,4 @@
-import { Readable, Writable } from 'stream';
+import { Transform } from 'stream';
 
 /**
  * STT変換結果
@@ -8,10 +8,21 @@ export interface STTResult {
   transcript: string;
   /** 信頼度スコア (0-1) */
   confidence: number;
-  /** 検出された言語 */
-  language: string;
+  /** セグメント情報 */
+  segments: Array<{
+    text: string;
+    startTime: number;
+    endTime: number;
+    confidence: number;
+  }>;
+  /** 最終結果かどうか（ストリーミング時） */
+  isFinal?: boolean;
   /** タイムスタンプ（UNIX時間） */
   timestamp: number;
+  /** プロバイダー名 */
+  provider: string;
+  /** 検出された言語 */
+  language?: string;
 }
 
 /**
@@ -20,8 +31,9 @@ export interface STTResult {
 export class STTError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
-    public readonly retryable: boolean = true
+    public readonly isRetryable: boolean,
+    public readonly provider: string,
+    public readonly originalError?: Error
   ) {
     super(message);
     this.name = 'STTError';
@@ -35,16 +47,18 @@ export interface STTPort {
   /**
    * 音声データをテキストに変換
    * @param audio 音声データバッファ
+   * @param options オプション設定
    * @returns 変換結果
    * @throws STTError
    */
-  transcribe(audio: Buffer): Promise<STTResult>;
+  transcribe(audio: Buffer, options?: any): Promise<STTResult>;
 
   /**
    * ストリーミングモードで音声をテキストに変換
-   * @returns 書き込み可能なストリーム（音声入力）と読み取り可能なストリーム（テキスト出力）
+   * @param transform 変換ストリーム
+   * @returns 同じ変換ストリーム
    */
-  startStreaming(): Writable & Readable;
+  startStreaming(transform: Transform): Promise<Transform>;
 
   /**
    * ヘルスチェック

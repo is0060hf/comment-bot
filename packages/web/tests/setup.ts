@@ -2,6 +2,8 @@
  * Jest セットアップファイル
  */
 
+import '@testing-library/jest-dom';
+
 // Next.js環境のモック
 jest.mock('next/server', () => ({
   NextRequest: class NextRequest {

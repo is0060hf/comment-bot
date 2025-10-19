@@ -32,12 +32,6 @@ const nextConfig = {
 
   // Webpack設定のカスタマイズ
   webpack: (config, { isServer }) => {
-    // 共有パッケージのエイリアス設定
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@comment-bot/shared': require.resolve('@comment-bot/shared'),
-    };
-
     return config;
   },
 

@@ -37,6 +37,13 @@ global.fetch = jest.fn();
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000';
 process.env.VERCEL_ENV = 'test';
 
+// ResizeObserverのモック
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
 // コンソールエラーのモック（テスト中の不要なログを抑制）
 const originalError = console.error;
 beforeAll(() => {

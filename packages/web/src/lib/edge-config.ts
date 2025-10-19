@@ -38,6 +38,12 @@ export async function getConfig(): Promise<Partial<AppConfig>> {
         allowedEmojis: ['👍', '😊', '🎉', '💡', '🔥'],
       },
     },
+    timing: {
+      minimumInterval: 30,
+      maxCommentsPerTenMinutes: 5,
+      cooldownAfterBurst: 120,
+      deduplicationWindow: 300,
+    },
     safety: {
       level: 'standard',
       enabled: true,

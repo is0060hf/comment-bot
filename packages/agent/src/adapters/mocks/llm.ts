@@ -42,7 +42,7 @@ export class MockLLMAdapter implements LLMPort {
   async generateComment(context: CommentGenerationContext): Promise<CommentGenerationResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new LLMError('Mock LLM service failure', 'MOCK_LLM_ERROR', true);
+      throw new LLMError('Mock LLM service failure', true, 'mock');
     }
 
     // コンテキストに基づいたコメント生成
@@ -83,7 +83,7 @@ export class MockLLMAdapter implements LLMPort {
   ): Promise<CommentClassificationResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new LLMError('Mock LLM classification failure', 'MOCK_LLM_ERROR', true);
+      throw new LLMError('Mock LLM classification failure', true, 'mock');
     }
 
     // キーワードベースの簡易分類
@@ -129,7 +129,7 @@ export class MockLLMAdapter implements LLMPort {
   async chat(messages: LLMMessage[], _options?: Record<string, unknown>): Promise<ChatResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new LLMError('Mock LLM chat failure', 'MOCK_LLM_ERROR', true);
+      throw new LLMError('Mock LLM chat failure', true, 'mock');
     }
 
     // 最後のユーザーメッセージに基づいて応答を生成

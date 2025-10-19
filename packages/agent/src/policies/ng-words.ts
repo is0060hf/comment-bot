@@ -325,7 +325,7 @@ export class NGWordsPolicy {
       
       // 3. 半角カタカナ版
       const halfWidthVersion = ngWord.replace(/[\u30a1-\u30f6]/g, (match) => {
-        const code = match.charCodeAt(0);
+        // const _code = match.charCodeAt(0);
         // 全角カタカナから半角カタカナへのマッピング
         const fullToHalf: Record<string, string> = {
           'ア': 'ｱ', 'イ': 'ｲ', 'ウ': 'ｳ', 'エ': 'ｴ', 'オ': 'ｵ',

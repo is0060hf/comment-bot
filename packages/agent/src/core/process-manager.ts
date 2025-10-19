@@ -6,7 +6,6 @@
 import { EventEmitter } from 'events';
 import * as http from 'http';
 import * as fs from 'fs';
-import * as net from 'net';
 import { Logger } from '../logging/logger';
 
 export interface ProcessManagerOptions {

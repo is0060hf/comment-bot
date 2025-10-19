@@ -260,32 +260,8 @@ export class SafetyChecker {
     return sanitized;
   }
 
-  /**
-   * レベルに応じた閾値を取得
-   */
-  private getThresholdsForLevel(): Record<string, number> {
-    const baseThresholds = this.config.moderationThresholds;
-    
-    switch (this.config.level) {
-      case 'strict':
-        // より厳しい閾値（-0.2）
-        return Object.entries(baseThresholds).reduce((acc, [key, value]) => {
-          acc[key] = Math.max(0, value - 0.2);
-          return acc;
-        }, {} as Record<string, number>);
-
-      case 'relaxed':
-        // より緩い閾値（+0.2）
-        return Object.entries(baseThresholds).reduce((acc, [key, value]) => {
-          acc[key] = Math.min(1, value + 0.2);
-          return acc;
-        }, {} as Record<string, number>);
-
-      case 'standard':
-      default:
-        return baseThresholds;
-    }
-  }
+  // _getThresholdsForLevel メソッドは現在使用されていないため削除
+  // 将来的にレベル別の閾値調整が必要になった場合は再実装する
 
   /**
    * 統計情報を取得

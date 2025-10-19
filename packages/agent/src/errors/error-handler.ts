@@ -194,7 +194,7 @@ export class ErrorHandler {
     return ErrorCategory.UNKNOWN;
   }
 
-  private isRetryable(error: Error, category: ErrorCategory): boolean {
+  private isRetryable(_error: Error, category: ErrorCategory): boolean {
     // カテゴリ別のリトライ可否
     switch (category) {
       case ErrorCategory.NETWORK:
@@ -220,17 +220,17 @@ export class ErrorHandler {
     while (attempt < this.config.maxRetries!) {
       try {
         return await operation();
-      } catch (error) {
-        lastError = error as Error;
-        const appError = this.handle(error as Error);
+      } catch (_error) {
+        lastError = _error as Error;
+        const appError = this.handle(_error as Error);
 
         if (!appError.isRetryable) {
-          throw error;
+          throw _error;
         }
         
         attempt++;
         if (attempt >= this.config.maxRetries!) {
-          throw error;
+          throw _error;
         }
 
         const delay = options?.useExponentialBackoff

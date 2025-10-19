@@ -191,7 +191,7 @@ export class CommentGenerator {
   }
 
   private generateFallback(
-    context: ContextSummary,
+    _context: ContextSummary,
     triggerType: TriggerDecision['triggerType']
   ): GeneratedComment {
     const fallbackTemplates: Record<string, string[]> = {

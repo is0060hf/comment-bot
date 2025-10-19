@@ -135,17 +135,6 @@ export class LiveChatService {
     return null;
   }
 
-  /**
-   * 古いキャッシュエントリを削除
-   */
-  private cleanupCache(): void {
-    const now = Date.now();
-    const entries = Array.from(this.cache.entries());
-    
-    for (const [key, value] of entries) {
-      if (now - value.timestamp > this.cacheTTL) {
-        this.cache.delete(key);
-      }
-    }
-  }
+  // _cleanupCache メソッドは現在使用されていないため削除
+  // 将来的にキャッシュ管理が必要になった場合は再実装する
 }

@@ -3,7 +3,7 @@
  * タスク9: ロギング/エラー処理の統合テスト
  */
 
-import { Logger, LogLevel } from '../../src/logging';
+import { Logger, LogLevel } from '../../src/logging/logger';
 import { ErrorHandler, AppError, ErrorCategory, RetryableError } from '../../src/errors';
 import * as fs from 'fs';
 import * as path from 'path';

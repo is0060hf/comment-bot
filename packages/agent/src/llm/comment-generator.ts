@@ -3,7 +3,7 @@
  * LLMを使用してコメントを生成
  */
 
-import { LLMPort, CommentGenerationContext, CommentGenerationResult } from '../ports/llm';
+import { LLMPort, CommentGenerationContext } from '../ports/llm';
 import { CommentConfig } from '../config/types';
 import { CommentLengthPolicy } from '../policies/comment-length';
 import { NGWordsPolicy } from '../policies/ng-words';

@@ -145,7 +145,7 @@ export class MockModerationAdapter implements ModerationPort {
   async moderateBatch(contents: string[]): Promise<ModerationResult[]> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new ModerationError('Mock moderation batch failure', 'MOCK_MODERATION_ERROR', true);
+      throw new ModerationError('Mock moderation batch failure', true, 'mock');
     }
 
     return Promise.all(contents.map((content) => this.moderate(content)));
@@ -154,7 +154,7 @@ export class MockModerationAdapter implements ModerationPort {
   async rewriteContent(content: string, _guidelines: string, _context?: string): Promise<RewriteResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new ModerationError('Mock rewrite failure', 'MOCK_MODERATION_ERROR', true);
+      throw new ModerationError('Mock rewrite failure', true, 'mock');
     }
 
     // 安全なコンテンツはそのまま返す

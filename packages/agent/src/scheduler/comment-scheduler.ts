@@ -310,7 +310,7 @@ export class CommentScheduler extends EventEmitter {
   private async handleRejection(
     comment: ScheduledComment,
     reason: string,
-    retryAfter?: number
+    _retryAfter?: number
   ): Promise<void> {
     const retryCount = (comment.retryCount || 0) + 1;
 

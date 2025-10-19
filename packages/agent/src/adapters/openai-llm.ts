@@ -12,7 +12,6 @@ import {
   CommentClassificationResult,
   CommentClassification,
   ChatResult,
-  TokenUsage,
   LLMError,
 } from '../ports/llm';
 import OpenAI from 'openai';

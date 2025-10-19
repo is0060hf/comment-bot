@@ -152,14 +152,16 @@ describe('STT Adapters Integration', () => {
         isHealthy: jest.fn().mockResolvedValue(true),
       };
 
-      const failoverManager = new FailoverManager<STTPort>({
-        providers: [
+      const failoverManager = new FailoverManager<STTPort>(
+        [
           { name: 'primary', provider: failingAdapter, priority: 1 },
           { name: 'backup', provider: successAdapter, priority: 2 },
         ],
-        healthCheckInterval: 30000,
-        logger: mockLogger,
-      });
+        {
+          healthCheckInterval: 30000,
+          logger: mockLogger,
+        }
+      );
 
       const audioBuffer = Buffer.from('test-audio');
       const result = await failoverManager.execute(
@@ -190,13 +192,15 @@ describe('STT Adapters Integration', () => {
         isHealthy: jest.fn().mockImplementation(async () => isHealthy),
       };
 
-      const failoverManager = new FailoverManager<STTPort>({
-        providers: [
+      const failoverManager = new FailoverManager<STTPort>(
+        [
           { name: 'recovering', provider: recoveringAdapter, priority: 1 },
         ],
-        healthCheckInterval: 100, // 短い間隔でテスト
-        logger: mockLogger,
-      });
+        {
+          healthCheckInterval: 100, // 短い間隔でテスト
+          logger: mockLogger,
+        }
+      );
 
       // 最初は失敗
       try {

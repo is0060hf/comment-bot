@@ -4,7 +4,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { Writable, Duplex } from 'stream';
+import { Writable, Duplex, Transform } from 'stream';
 import { STTPort } from '../ports/stt';
 
 export interface TranscriptResult {
@@ -76,7 +76,13 @@ export class StreamingSTT extends EventEmitter {
   }
 
   private async startStream(): Promise<Duplex> {
-    const stream = this.config.adapter.startStreaming();
+    const transform = new Transform({
+      transform(chunk, _encoding, callback) {
+        callback(null, chunk);
+      }
+    });
+    
+    const stream = await this.config.adapter.startStreaming(transform);
     
     // ストリーミング設定をアダプタに渡す（実装依存）
     if ('configure' in stream && typeof stream.configure === 'function') {

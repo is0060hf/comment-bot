@@ -33,7 +33,7 @@ export class OpenAIModerationAdapter implements ModerationPort {
     this.openai = new OpenAI({ apiKey: config.apiKey });
   }
 
-  async moderate(content: string, context?: string): Promise<ModerationResult> {
+  async moderate(content: string, _context?: string): Promise<ModerationResult> {
     try {
       const response = await this.openai.moderations.create({
         input: content,
@@ -82,7 +82,7 @@ export class OpenAIModerationAdapter implements ModerationPort {
         input: contents,
       });
 
-      return response.results.map((result, index) => {
+      return response.results.map((result, _index) => {
         const scores = this.mapCategoryScores(result.category_scores);
         const flaggedCategories = this.getFlaggedCategories(result);
         const suggestedAction = this.determineSuggestedAction(

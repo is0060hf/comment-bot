@@ -53,7 +53,9 @@ export class PostingLengthPolicy {
     maxLength: 0
   };
 
-  constructor(private readonly logger: Logger) {}
+  constructor(private readonly logger: Logger) {
+    this.logger.debug('PostingLengthPolicy initialized');
+  }
 
   /**
    * コメントの文字数を検証

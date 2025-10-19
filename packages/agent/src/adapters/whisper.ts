@@ -86,7 +86,7 @@ export class WhisperAdapter implements STTPort {
     }
   }
 
-  async startStreaming(transform: Transform): Promise<Transform> {
+  async startStreaming(_transform: Transform): Promise<Transform> {
     // Whisperはストリーミングをサポートしていない
     this.logger?.warn('Whisper streaming not supported, falling back to batch processing');
     

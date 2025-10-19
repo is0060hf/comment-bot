@@ -48,11 +48,11 @@ export class MockEdgeConfigClient {
     return this.mockData.has(key);
   }
 
-  clearCache(key?: string): void {
+  clearCache(_key?: string): void {
     // モックなのでキャッシュクリアは何もしない
   }
 
-  on(event: string, handler: Function): void {
+  on(_event: string, _handler: Function): void {
     // モックなのでイベントハンドリングは何もしない
   }
 }

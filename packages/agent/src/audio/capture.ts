@@ -10,6 +10,19 @@ import { Logger, LogLevel } from '../logging/logger';
 const execAsync = promisify(exec);
 
 /**
+ * 音声バッファ
+ */
+export type AudioBuffer = Buffer;
+
+/**
+ * 音声デバイス情報
+ */
+export interface AudioDevice {
+  name: string;
+  index: number;
+}
+
+/**
  * 音声キャプチャの設定
  */
 export interface AudioCaptureConfig {
@@ -25,6 +38,8 @@ export interface AudioCaptureConfig {
   reconnectDelay?: number;
   /** バッファサイズ（バイト） */
   bufferSize?: number;
+  /** 最大再接続試行回数 */
+  maxReconnectAttempts?: number;
 }
 
 /**

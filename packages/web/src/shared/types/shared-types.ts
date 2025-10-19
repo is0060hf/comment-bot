@@ -5,17 +5,7 @@
 
 import { z } from 'zod';
 
-// 既存の型定義を再エクスポート
-export {
-  TranscriptSegmentSchema,
-  ContextSummarySchema,
-  ModerationResultSchema,
-  PostResultSchema,
-  type TranscriptSegment,
-  type ContextSummary,
-  type ModerationResult,
-  type PostResult,
-} from './app-config';
+// 既存の型定義はapp-config.tsから直接エクスポートされるため、ここでは再エクスポートしない
 
 /**
  * コメントトリガー判定

@@ -11,26 +11,20 @@ export class MockAudioCapture extends EventEmitter {
   private _capturing = false;
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private simulatedDevices: AudioDevice[] = [
-    { id: 'blackhole', name: 'BlackHole 2ch', type: 'input' },
-    { id: 'default', name: 'Default Audio Device', type: 'input' },
-    { id: 'builtin', name: 'Built-in Microphone', type: 'input' },
-    { id: 'speakers', name: 'Built-in Speakers', type: 'output' },
-  ];
+  private simulatedDevices: AudioDevice[] = [];
 
   constructor(config: AudioCaptureConfig) {
     super();
     
-    if (config.sampleRate <= 0) {
+    if (config.sampleRate && config.sampleRate <= 0) {
       throw new Error('Invalid sample rate');
     }
-    if (config.channels <= 0) {
+    if (config.channels && config.channels <= 0) {
       throw new Error('Invalid channel count');
     }
     
     this.config = {
       autoReconnect: false,
-      maxReconnectAttempts: 5,
       ...config,
     };
   }
@@ -41,16 +35,14 @@ export class MockAudioCapture extends EventEmitter {
 
   static async listDevices(): Promise<AudioDevice[]> {
     return Promise.resolve([
-      { id: 'blackhole', name: 'BlackHole 2ch', type: 'input' },
-      { id: 'default', name: 'Default Audio Device', type: 'input' },
-      { id: 'builtin', name: 'Built-in Microphone', type: 'input' },
-      { id: 'speakers', name: 'Built-in Speakers', type: 'output' },
+      { name: 'BlackHole 2ch', index: 0 },
+      { name: 'Default Audio Device', index: 1 },
+      { name: 'Built-in Microphone', index: 2 }
     ]);
   }
 
   static async listInputDevices(): Promise<AudioDevice[]> {
-    const devices = await this.listDevices();
-    return devices.filter(device => device.type === 'input');
+    return this.listDevices();
   }
 
   async start(): Promise<void> {
@@ -74,25 +66,23 @@ export class MockAudioCapture extends EventEmitter {
       if (!this._capturing) return;
       
       // ダミーの音声データを生成
-      const samples = config.bufferSize / 2; // 16bit = 2 bytes per sample
-      const buffer = Buffer.alloc(config.bufferSize);
+      const bufferSize = config.bufferSize || 4096;
+      const sampleRate = config.sampleRate || 48000;
+      const samples = bufferSize / 2; // 16bit = 2 bytes per sample
+      const buffer = Buffer.alloc(bufferSize);
       
       for (let i = 0; i < samples; i++) {
         // サイン波を生成（440Hz）
-        const t = i / config.sampleRate;
+        const t = i / sampleRate;
         const value = Math.sin(2 * Math.PI * 440 * t) * 32767;
         buffer.writeInt16LE(Math.floor(value), i * 2);
       }
       
-      const audioBuffer: AudioBuffer = {
-        data: buffer,
-        sampleRate: config.sampleRate,
-        channels: config.channels,
-        timestamp: Date.now(),
-      };
+      // AudioBuffer is just a Buffer type
+      const audioBuffer: AudioBuffer = buffer;
       
       this.emit('data', audioBuffer);
-    }, Math.floor(config.bufferSize / config.sampleRate * 1000));
+    }, Math.floor(config.bufferSize! / config.sampleRate! * 1000));
   }
 
   async stop(): Promise<void> {
@@ -131,7 +121,7 @@ export class MockAudioCapture extends EventEmitter {
 
     this.reconnectAttempts++;
     
-    if (this.reconnectAttempts > (config.maxReconnectAttempts || 5)) {
+    if (this.reconnectAttempts > 5) {
       this._capturing = false;
       this.emit('error', new Error('Max reconnection attempts exceeded'));
       return;
@@ -150,24 +140,22 @@ export class MockAudioCapture extends EventEmitter {
           this.interval = setInterval(() => {
             if (!this._capturing) return;
             
-            const samples = config.bufferSize / 2;
-            const buffer = Buffer.alloc(config.bufferSize);
+            const bufferSize = config.bufferSize || 4096;
+            const sampleRate = config.sampleRate || 48000;
+            const samples = bufferSize / 2;
+            const buffer = Buffer.alloc(bufferSize);
             
             for (let i = 0; i < samples; i++) {
-              const t = i / config.sampleRate;
+              const t = i / sampleRate;
               const value = Math.sin(2 * Math.PI * 440 * t) * 32767;
               buffer.writeInt16LE(Math.floor(value), i * 2);
             }
             
-            const audioBuffer: AudioBuffer = {
-              data: buffer,
-              sampleRate: config.sampleRate,
-              channels: config.channels,
-              timestamp: Date.now(),
-            };
+            // AudioBuffer is just a Buffer type
+            const audioBuffer: AudioBuffer = buffer;
             
             this.emit('data', audioBuffer);
-          }, Math.floor(config.bufferSize / config.sampleRate * 1000));
+          }, Math.floor(config.bufferSize! / config.sampleRate! * 1000));
           
           this.emit('reconnected');
           this.reconnectAttempts = 0;

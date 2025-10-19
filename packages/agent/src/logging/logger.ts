@@ -23,13 +23,7 @@ export interface LoggerConfig {
   retentionDays?: number;
 }
 
-interface LogEntry {
-  timestamp: string;
-  level: string;
-  message: string;
-  context?: any;
-  stack?: string;
-}
+// LogEntry interface removed as it was not being used
 
 export class Logger {
   private config: LoggerConfig;

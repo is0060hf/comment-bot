@@ -1,4 +1,4 @@
-import { Readable, Writable, Transform } from 'stream';
+import { Transform } from 'stream';
 
 import { STTPort, STTResult, STTError } from '../../ports/stt';
 
@@ -41,12 +41,12 @@ export class MockSTTAdapter implements STTPort {
   async transcribe(audio: Buffer): Promise<STTResult> {
     // 失敗シミュレーション
     if (Math.random() < this.config.failureRate) {
-      throw new STTError('Mock STT service failure', 'MOCK_STT_ERROR', true);
+      throw new STTError('Mock STT service failure', true, 'mock');
     }
 
     // 空のバッファチェック
     if (audio.length === 0) {
-      throw new STTError('Empty audio buffer', 'EMPTY_AUDIO', false);
+      throw new STTError('Empty audio buffer', false, 'mock');
     }
 
     // ランダムなサンプルトランスクリプトを返す

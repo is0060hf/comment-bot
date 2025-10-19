@@ -2,5 +2,5 @@
  * 音声キャプチャモジュール
  */
 
-export { AudioCapture, AudioCaptureConfig } from './capture';
+export { AudioCapture, AudioCaptureConfig, AudioBuffer, AudioDevice } from './capture';
 export { MockAudioCapture } from './mock-capture';

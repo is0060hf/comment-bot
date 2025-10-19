@@ -45,7 +45,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
+    "@jest/globals": "^30.2.0",
     "@types/axios": "^0.9.36",
     "@types/form-data": "^2.2.1",
     "@types/jest": "^29.5.12",

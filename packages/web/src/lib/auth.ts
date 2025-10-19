@@ -27,6 +27,23 @@ export async function verifyAuth(request: NextRequest): Promise<boolean> {
 }
 
 /**
+ * エージェントからのリクエストを認証
+ * @param request NextRequest
+ * @returns 認証が有効かどうか
+ */
+export async function verifyAgentAuth(request: NextRequest): Promise<boolean> {
+  // エージェントキーのチェック
+  const agentKey = request.headers.get('X-Agent-Key');
+  if (!agentKey) {
+    return false;
+  }
+
+  // 環境変数からエージェントキーを取得
+  const validKey = process.env.AGENT_API_KEY || 'default-agent-key';
+  return agentKey === validKey;
+}
+
+/**
  * トークンの検証
  * @param token 検証するトークン
  * @returns トークンが有効かどうか

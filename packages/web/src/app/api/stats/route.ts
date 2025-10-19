@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { agentStore } from '@/lib/agent-store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,16 +14,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: 実際のエージェントから統計情報を取得
-    // 現在はモックデータを返す
-    const stats = {
-      totalComments: Math.floor(Math.random() * 100) + 1,
-      sessionComments: Math.floor(Math.random() * 20),
-      averageInterval: Math.floor(Math.random() * 60) + 30,
-      uptime: formatUptime(Date.now() - Math.random() * 10000000),
+    // agentStoreから統計情報を取得
+    const stats = agentStore.getStats();
+    const status = agentStore.getStatus();
+
+    const responseData = {
+      totalComments: stats.totalComments,
+      sessionComments: stats.sessionComments,
+      averageInterval: 45, // TODO: 実際の平均間隔を計算
+      uptime: stats.uptime,
     };
 
-    return NextResponse.json(stats);
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Failed to fetch stats:', error);
     return NextResponse.json(

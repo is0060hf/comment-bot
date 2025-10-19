@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { agentStore } from '@/lib/agent-store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,14 +14,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: 実際のエージェントからステータスを取得
-    // 現在はモックデータを返す
-    const status = {
-      agent: 'running',
-      stt: 'connected',
-      youtube: 'authenticated',
-      safety: 'enabled',
-    };
+    // agentStoreからステータスを取得
+    const status = agentStore.getStatus();
 
     return NextResponse.json(status);
   } catch (error) {

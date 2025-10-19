@@ -30,9 +30,11 @@ export interface ModerationResult {
   /** フラグされたカテゴリ */
   flaggedCategories: ModerationCategory[];
   /** 推奨アクション */
-  suggestedAction: 'approve' | 'review' | 'block' | 'rewrite';
+  suggestedAction?: 'approve' | 'review' | 'block' | 'rewrite';
   /** エラー情報 */
   error?: string;
+  /** プロバイダー名 */
+  provider?: string;
 }
 
 /**

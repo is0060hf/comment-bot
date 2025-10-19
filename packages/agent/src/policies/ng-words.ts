@@ -131,7 +131,7 @@ export class NGWordsPolicy {
     // 3. 全角英数字を半角に変換
     normalized = this.fullWidthToHalfWidth(normalized);
 
-    // 4. 長音符の正規化（ァ→ア、ィ→イ、ゥ→ウ、ェ→エ、ォ→オ）
+    // 4. 長音符の正規化（ァ→ア、ィ→イ、ゥ→ウ、ェ→エ、ォ→オ、長音符の処理）
     normalized = normalized.replace(/[ァィゥェォ]/g, (char) => {
       const map: Record<string, string> = {
         ァ: 'ア',
@@ -141,6 +141,27 @@ export class NGWordsPolicy {
         ォ: 'オ',
       };
       return map[char] || char;
+    });
+
+    // 長音符「ー」を前の文字の母音に変換
+    normalized = normalized.replace(/([カ-ヾ])ー/g, (match, prevChar) => {
+      const vowelMap: Record<string, string> = {
+        カ: 'カア', ガ: 'ガア', キ: 'キイ', ギ: 'ギイ', ク: 'クウ', グ: 'グウ',
+        ケ: 'ケエ', ゲ: 'ゲエ', コ: 'コオ', ゴ: 'ゴオ',
+        サ: 'サア', ザ: 'ザア', シ: 'シイ', ジ: 'ジイ', ス: 'スウ', ズ: 'ズウ',
+        セ: 'セエ', ゼ: 'ゼエ', ソ: 'ソオ', ゾ: 'ゾオ',
+        タ: 'タア', ダ: 'ダア', チ: 'チイ', ヂ: 'ヂイ', ツ: 'ツウ', ヅ: 'ヅウ',
+        テ: 'テエ', デ: 'デエ', ト: 'トオ', ド: 'ドオ',
+        ナ: 'ナア', ニ: 'ニイ', ヌ: 'ヌウ', ネ: 'ネエ', ノ: 'ノオ',
+        ハ: 'ハア', バ: 'バア', パ: 'パア', ヒ: 'ヒイ', ビ: 'ビイ', ピ: 'ピイ',
+        フ: 'フウ', ブ: 'ブウ', プ: 'プウ', ヘ: 'ヘエ', ベ: 'ベエ', ペ: 'ペエ',
+        ホ: 'ホオ', ボ: 'ボオ', ポ: 'ポオ',
+        マ: 'マア', ミ: 'ミイ', ム: 'ムウ', メ: 'メエ', モ: 'モオ',
+        ヤ: 'ヤア', ユ: 'ユウ', ヨ: 'ヨオ',
+        ラ: 'ラア', リ: 'リイ', ル: 'ルウ', レ: 'レエ', ロ: 'ロオ',
+        ワ: 'ワア', ヲ: 'ヲオ', ン: 'ンー',
+      };
+      return vowelMap[prevChar] || match;
     });
 
     // 5. 文字の繰り返しを削減（3文字以上の繰り返しを2文字に）
@@ -290,49 +311,86 @@ export class NGWordsPolicy {
       return comment; // NG語がない場合はそのまま返す
     }
 
-    // 各NG語に対して、様々なバリエーションを検出して置換
-    for (const ngWord of this.ngWords) {
-      const normalizedNG = this.normalize(ngWord);
-
-      // 簡単なアプローチ: 正規化されたテキストと正規化されたNG語を比較
-      // マッチした範囲を元のテキストから削除
-      const normalizedComment = this.normalize(sanitized);
-
-      // 正規化されたテキストでNG語を検索
-      let searchStart = 0;
-      while (true) {
-        const index = normalizedComment.indexOf(normalizedNG, searchStart);
-        if (index === -1) break;
-
-        // 元のテキストでの対応位置を探す
-        // 正規化前後で文字数が変わる可能性があるため、周辺を含めて検索
-        let originalStart = 0;
-        let normalizedPos = 0;
-
-        // 正規化された位置まで元のテキストを進める
-        while (normalizedPos < index && originalStart < sanitized.length) {
-          const originalChar = sanitized[originalStart];
-          const normalizedChunk = this.normalize(originalChar!);
-          normalizedPos += normalizedChunk.length;
-          originalStart++;
+    // 各検出されたNG語に対して置換を実行
+    for (const ngWord of detection.detectedWords) {
+      // 様々なバリエーションで検索・置換
+      // 1. 完全一致
+      sanitized = sanitized.replace(new RegExp(this.escapeRegExp(ngWord), 'gi'), '***');
+      
+      // 2. ひらがな版
+      const hiraganaVersion = this.katakanaToHiragana(ngWord);
+      if (hiraganaVersion !== ngWord) {
+        sanitized = sanitized.replace(new RegExp(this.escapeRegExp(hiraganaVersion), 'gi'), '***');
+      }
+      
+      // 3. 半角カタカナ版
+      const halfWidthVersion = ngWord.replace(/[\u30a1-\u30f6]/g, (match) => {
+        const code = match.charCodeAt(0);
+        // 全角カタカナから半角カタカナへのマッピング
+        const fullToHalf: Record<string, string> = {
+          'ア': 'ｱ', 'イ': 'ｲ', 'ウ': 'ｳ', 'エ': 'ｴ', 'オ': 'ｵ',
+          'カ': 'ｶ', 'キ': 'ｷ', 'ク': 'ｸ', 'ケ': 'ｹ', 'コ': 'ｺ',
+          'ガ': 'ｶﾞ', 'ギ': 'ｷﾞ', 'グ': 'ｸﾞ', 'ゲ': 'ｹﾞ', 'ゴ': 'ｺﾞ',
+          'サ': 'ｻ', 'シ': 'ｼ', 'ス': 'ｽ', 'セ': 'ｾ', 'ソ': 'ｿ',
+          'ザ': 'ｻﾞ', 'ジ': 'ｼﾞ', 'ズ': 'ｽﾞ', 'ゼ': 'ｾﾞ', 'ゾ': 'ｿﾞ',
+          'タ': 'ﾀ', 'チ': 'ﾁ', 'ツ': 'ﾂ', 'テ': 'ﾃ', 'ト': 'ﾄ',
+          'ダ': 'ﾀﾞ', 'ヂ': 'ﾁﾞ', 'ヅ': 'ﾂﾞ', 'デ': 'ﾃﾞ', 'ド': 'ﾄﾞ',
+          'ナ': 'ﾅ', 'ニ': 'ﾆ', 'ヌ': 'ﾇ', 'ネ': 'ﾈ', 'ノ': 'ﾉ',
+          'ハ': 'ﾊ', 'ヒ': 'ﾋ', 'フ': 'ﾌ', 'ヘ': 'ﾍ', 'ホ': 'ﾎ',
+          'バ': 'ﾊﾞ', 'ビ': 'ﾋﾞ', 'ブ': 'ﾌﾞ', 'ベ': 'ﾍﾞ', 'ボ': 'ﾎﾞ',
+          'パ': 'ﾊﾟ', 'ピ': 'ﾋﾟ', 'プ': 'ﾌﾟ', 'ペ': 'ﾍﾟ', 'ポ': 'ﾎﾟ',
+          'マ': 'ﾏ', 'ミ': 'ﾐ', 'ム': 'ﾑ', 'メ': 'ﾒ', 'モ': 'ﾓ',
+          'ヤ': 'ﾔ', 'ユ': 'ﾕ', 'ヨ': 'ﾖ',
+          'ラ': 'ﾗ', 'リ': 'ﾘ', 'ル': 'ﾙ', 'レ': 'ﾚ', 'ロ': 'ﾛ',
+          'ワ': 'ﾜ', 'ヲ': 'ｦ', 'ン': 'ﾝ'
+        };
+        return fullToHalf[match] || match;
+      });
+      if (halfWidthVersion !== ngWord) {
+        sanitized = sanitized.replace(new RegExp(this.escapeRegExp(halfWidthVersion), 'gi'), '***');
+      }
+      
+      // 4. 長音符を含むバリエーション（例: バカ→バーカ）
+      // 各カタカナ文字の後に長音符を許可するパターンを生成
+      const chars = Array.from(ngWord);
+      let flexiblePattern = '';
+      
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+        if (!char) continue;
+        flexiblePattern += this.escapeRegExp(char);
+        
+        // カタカナの場合、後ろに長音符を許可
+        if (/[ァ-ヶ]/.test(char)) {
+          flexiblePattern += 'ー?';
         }
-
-        // NG語の長さを考慮して終端位置を決定
-        let originalEnd = originalStart;
-        let normalizedEndPos = normalizedPos;
-
-        while (normalizedEndPos < index + normalizedNG.length && originalEnd < sanitized.length) {
-          const originalChar = sanitized[originalEnd];
-          const normalizedChunk = this.normalize(originalChar!);
-          normalizedEndPos += normalizedChunk.length;
-          originalEnd++;
+      }
+      
+      try {
+        sanitized = sanitized.replace(new RegExp(flexiblePattern, 'gi'), '***');
+      } catch {
+        // 正規表現エラーは無視
+      }
+      
+      // 5. スペースや特殊文字を含むバリエーション
+      // カタカナ版
+      const spacedChars = Array.from(ngWord);
+      const spacedPattern = spacedChars.map(c => this.escapeRegExp(c)).join('[\\s　・]*');
+      try {
+        sanitized = sanitized.replace(new RegExp(spacedPattern, 'gi'), '***');
+      } catch {
+        // 正規表現エラーは無視
+      }
+      
+      // ひらがな版もチェック
+      if (hiraganaVersion !== ngWord) {
+        const hiraganaSpacedChars = Array.from(hiraganaVersion);
+        const hiraganaSpacedPattern = hiraganaSpacedChars.map(c => this.escapeRegExp(c)).join('[\\s　・]*');
+        try {
+          sanitized = sanitized.replace(new RegExp(hiraganaSpacedPattern, 'gi'), '***');
+        } catch {
+          // 正規表現エラーは無視
         }
-
-        // 置換
-        sanitized =
-          `${sanitized.substring(0, originalStart)  }***${  sanitized.substring(originalEnd)}`;
-
-        searchStart = index + normalizedNG.length;
       }
     }
 
@@ -381,14 +439,19 @@ export class NGWordsPolicy {
   /**
    * カタカナをひらがなに変換
    */
-  /*
-  private katakanaToHiragana(text: string): string {
+  katakanaToHiragana(text: string): string {
     return text.replace(/[\u30a1-\u30f6]/g, (match) => {
       const code = match.charCodeAt(0) - 0x60;
       return String.fromCharCode(code);
     });
   }
-  */
+
+  /**
+   * 正規表現の特殊文字をエスケープ
+   */
+  escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   /**
    * 全角英数字を半角に変換

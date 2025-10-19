@@ -86,7 +86,7 @@ export class ConfigSync extends EventEmitter {
       return await this.options.edgeConfigClient.get('comment-bot-config');
     } catch (error) {
       this.options.logger?.error('Failed to fetch Edge Config', error as Error);
-      return null;
+      throw error; // Re-throw the error so sync can handle it
     }
   }
 

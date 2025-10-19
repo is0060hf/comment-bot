@@ -60,47 +60,50 @@ export class MockSTTAdapter implements STTPort {
       confidence: this.config.defaultConfidence,
       language: 'ja',
       timestamp: Date.now(),
+      segments: [],
+      provider: 'MOCK',
+      isFinal: true
     };
   }
 
-  startStreaming(): Writable & Readable {
-    const transform = new Transform({
-      objectMode: true,
-      transform: (_chunk: Buffer, _encoding, callback) => {
-        // 失敗シミュレーション
-        if (Math.random() < this.config.failureRate) {
-          callback(new STTError('Mock STT streaming failure', 'MOCK_STT_STREAM_ERROR', true));
-          return;
-        }
+  async startStreaming(transform: Transform): Promise<Transform> {
+    // Add event handler for incoming data
+    transform.on('data', (_chunk: Buffer) => {
+      // 失敗シミュレーション
+      if (Math.random() < this.config.failureRate) {
+        transform.emit('error', new STTError('Mock STT streaming failure', true, 'MOCK_STT_STREAM_ERROR'));
+        return;
+      }
 
-        // チャンクごとにランダムなトランスクリプトを生成
-        const partialTranscripts = [
-          'これは',
-          '配信の',
-          'テスト音声です',
-          '今日は',
-          '新しい機能について',
-          '説明します',
-        ];
+      // チャンクごとにランダムなトランスクリプトを生成
+      const partialTranscripts = [
+        'これは',
+        '配信の',
+        'テスト音声です',
+        '今日は',
+        '新しい機能について',
+        '説明します',
+      ];
 
-        const transcript =
-          partialTranscripts[Math.floor(Math.random() * partialTranscripts.length)] ??
-          partialTranscripts[0] ??
-          'チャンク';
+      const transcript =
+        partialTranscripts[Math.floor(Math.random() * partialTranscripts.length)] ??
+        partialTranscripts[0] ??
+        'チャンク';
 
-        const result: STTResult = {
-          transcript,
-          confidence: this.config.defaultConfidence * 0.9, // ストリーミングは少し低い信頼度
-          language: 'ja',
-          timestamp: Date.now(),
-        };
+      const result: STTResult = {
+        transcript,
+        confidence: this.config.defaultConfidence * 0.9, // ストリーミングは少し低い信頼度
+        language: 'ja',
+        timestamp: Date.now(),
+        segments: [],
+        isFinal: Math.random() > 0.5,
+        provider: 'MOCK'
+      };
 
-        // 非同期でチャンクを送信
-        setTimeout(() => {
-          transform.push(result);
-          callback();
-        }, this.config.streamingIntervalMs);
-      },
+      // 非同期でチャンクを送信
+      setTimeout(() => {
+        transform.push(result);
+      }, this.config.streamingIntervalMs);
     });
 
     return transform;

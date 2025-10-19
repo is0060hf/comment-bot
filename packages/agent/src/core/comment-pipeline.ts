@@ -198,10 +198,10 @@ export class CommentPipeline {
       }
 
       let finalComment = policyAppliedComment;
-      if (moderationResult.requiresRewrite) {
+      if (moderationResult.suggestedAction === 'rewrite') {
         const rewriteResult = await this.moderationManager.moderateAndRewrite(policyAppliedComment);
-        if (rewriteResult.rewritten) {
-          finalComment = rewriteResult.rewrittenContent!;
+        if (rewriteResult.rewritten && rewriteResult.rewrittenContent) {
+          finalComment = rewriteResult.rewrittenContent;
         }
       }
 

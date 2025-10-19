@@ -303,11 +303,30 @@ export class ModerationManager {
       }
     }
 
+    // Determine suggestedAction based on flagged status
+    let suggestedAction = result.suggestedAction;
+    if (!suggestedAction) {
+      if (flagged || result.flagged) {
+        // If severely flagged, suggest block
+        const maxScore = Math.max(...Object.values(result.scores || {}));
+        if (maxScore >= 0.8) {
+          suggestedAction = 'block';
+        } else if (maxScore >= 0.6) {
+          suggestedAction = 'rewrite';
+        } else {
+          suggestedAction = 'review';
+        }
+      } else {
+        suggestedAction = 'approve';
+      }
+    }
+
     return {
       ...result,
       flagged: flagged || result.flagged,
       flaggedCategories:
         adjustedCategories.length > 0 ? adjustedCategories : result.flaggedCategories,
+      suggestedAction,
     };
   }
 

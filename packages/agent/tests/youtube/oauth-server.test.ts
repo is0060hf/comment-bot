@@ -325,7 +325,9 @@ describe('OAuthServer', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Request error',
-        expect.any(Error)
+        expect.objectContaining({
+          message: expect.stringContaining('Parse Error')
+        })
       );
     });
   });

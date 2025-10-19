@@ -70,11 +70,7 @@ describe('Moderation Integration', () => {
     });
 
     test('コンテキスト付きモデレーションが動作すること', async () => {
-      const context = {
-        streamTitle: 'プログラミング配信',
-        currentTopic: 'TypeScript',
-        audienceType: 'general',
-      };
+      const context = 'プログラミング配信でTypeScriptについて話しています';
 
       const result = await manager.moderateWithThresholds('技術的な批判', context);
 
@@ -116,7 +112,7 @@ describe('Moderation Integration', () => {
         const result = await moderationManager.moderateWithThresholds(comment);
 
         if (result.flagged) {
-          if (result.requiresRewrite) {
+          if (result.suggestedAction === 'rewrite') {
             const rewriteResult = await moderationManager.moderateAndRewrite(comment);
             if (rewriteResult.rewritten) {
               moderatedComments.push({

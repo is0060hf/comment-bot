@@ -1,217 +1,239 @@
 /**
- * Tsumiki AITDD - Red Phase
- * タスク3: 音声キャプチャのテストケース
+ * 音声キャプチャのテスト
+ * BlackHole/Loopbackからの音声取得機能をテスト
  */
 
-import { AudioCapture, AudioCaptureConfig, AudioBuffer, AudioDevice } from '../../src/audio/capture';
-import { MockAudioCapture } from '../../src/audio/mock-capture';
+import { AudioCapture } from '../../src/audio/capture';
 import { EventEmitter } from 'events';
+import { ChildProcess } from 'child_process';
+
+// モックの型定義
+jest.mock('child_process');
+jest.mock('util', () => ({
+  ...jest.requireActual('util'),
+  promisify: (fn: Function) => {
+    return (...args: any[]) => {
+      return new Promise((resolve, reject) => {
+        fn(...args, (err: any, stdout: any, stderr: any) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ stdout, stderr });
+          }
+        });
+      });
+    };
+  }
+}));
 
 describe('AudioCapture', () => {
-  let capture: AudioCapture | MockAudioCapture;
-  let config: AudioCaptureConfig;
+  let audioCapture: AudioCapture;
+  let mockFFmpeg: jest.Mocked<ChildProcess>;
 
   beforeEach(() => {
-    config = {
-      deviceName: 'BlackHole 2ch',
-      sampleRate: 16000,
-      channels: 1,
-      bufferSize: 4096,
-    };
-  });
+    // child_processモジュールのモックをリセット
+    jest.clearAllMocks();
+    
+    // FFmpegプロセスのモック
+    mockFFmpeg = new EventEmitter() as any;
+    mockFFmpeg.kill = jest.fn();
+    mockFFmpeg.stdout = new EventEmitter() as any;
+    mockFFmpeg.stderr = new EventEmitter() as any;
+    mockFFmpeg.stdin = { write: jest.fn(), end: jest.fn() } as any;
+    
+    // spawn関数のモック
+    const { spawn } = require('child_process');
+    spawn.mockReturnValue(mockFFmpeg);
 
-  afterEach(async () => {
-    if (capture) {
-      await capture.stop();
-    }
-  });
-
-  describe('initialization', () => {
-    test('正しい設定で初期化できること', () => {
-      capture = new MockAudioCapture(config);
-      expect(capture).toBeDefined();
-      const actualConfig = capture.getConfig();
-      expect(actualConfig.deviceName).toBe(config.deviceName);
-      expect(actualConfig.sampleRate).toBe(config.sampleRate);
-      expect(actualConfig.channels).toBe(config.channels);
-      expect(actualConfig.bufferSize).toBe(config.bufferSize);
-    });
-
-    test('不正なサンプルレートでエラーになること', () => {
-      const invalidConfig = { ...config, sampleRate: 0 };
-      expect(() => new MockAudioCapture(invalidConfig)).toThrow('Invalid sample rate');
-    });
-
-    test('不正なチャンネル数でエラーになること', () => {
-      const invalidConfig = { ...config, channels: 0 };
-      expect(() => new MockAudioCapture(invalidConfig)).toThrow('Invalid channel count');
-    });
-  });
-
-  describe('device enumeration', () => {
-    test('利用可能なオーディオデバイスを列挙できること', async () => {
-      const devices = await MockAudioCapture.listDevices();
-      expect(Array.isArray(devices)).toBe(true);
-      expect(devices.length).toBeGreaterThanOrEqual(0);
-      
-      if (devices.length > 0) {
-        expect(devices[0]).toHaveProperty('id');
-        expect(devices[0]).toHaveProperty('name');
-        expect(devices[0]).toHaveProperty('type');
+    // exec関数のモック（promisifiedバージョン用）
+    const { exec } = require('child_process');
+    const mockExec = jest.fn((cmd: string, options: any, callback?: Function) => {
+      // promisifyされた場合の対応
+      const cb = callback || options;
+      if (typeof cb === 'function') {
+        // ffmpeg -list_devices の出力をシミュレート
+        const mockOutput = `
+[AVFoundation indev @ 0x7f8b8b704680] AVFoundation video devices:
+[AVFoundation indev @ 0x7f8b8b704680] [0] FaceTime HD Camera
+[AVFoundation indev @ 0x7f8b8b704680] AVFoundation audio devices:
+[AVFoundation indev @ 0x7f8b8b704680] [0] BlackHole 2ch
+[AVFoundation indev @ 0x7f8b8b704680] [1] MacBook Pro Microphone
+[AVFoundation indev @ 0x7f8b8b704680] [2] Microsoft Teams Audio
+`;
+        cb(null, mockOutput, '');
       }
     });
+    exec.mockImplementation(mockExec);
 
-    test('入力デバイスのみをフィルタできること', async () => {
-      const inputDevices = await MockAudioCapture.listInputDevices();
-      expect(Array.isArray(inputDevices)).toBe(true);
+    audioCapture = new AudioCapture();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('listDevices', () => {
+    it('利用可能な音声デバイスをリストできること', async () => {
+      // 新しいインスタンスを作成して、execのモックがクリーンな状態であることを確認
+      const newCapture = new AudioCapture();
+      const devices = await newCapture.listDevices();
       
-      inputDevices.forEach((device: AudioDevice) => {
-        expect(device.type).toBe('input');
+      expect(devices).toContain('BlackHole 2ch');
+      expect(devices.length).toBeGreaterThan(0);
+    });
+
+    it('デバイスリストの取得に失敗した場合、エラーをスローすること', async () => {
+      const { exec } = require('child_process');
+      exec.mockImplementationOnce((cmd: string, options: any, callback?: Function) => {
+        const cb = callback || options;
+        cb(new Error('Command failed'), '', 'error');
       });
+
+      await expect(audioCapture.listDevices()).rejects.toThrow('Failed to list audio devices');
     });
   });
 
-  describe('audio capture', () => {
-    test('音声キャプチャを開始できること', async () => {
-      capture = new MockAudioCapture(config);
-      
-      await expect(capture.start()).resolves.not.toThrow();
-      expect(capture.isCapturing()).toBe(true);
+  describe('startCapture', () => {
+    it('指定したデバイスから音声キャプチャを開始できること', async () => {
+      const deviceName = 'BlackHole 2ch';
+      await audioCapture.startCapture(deviceName);
+
+      const { spawn } = require('child_process');
+      expect(spawn).toHaveBeenCalledWith('ffmpeg', expect.arrayContaining([
+        '-f', 'avfoundation',
+        '-i', `:${deviceName}`,
+        '-acodec', 'pcm_s16le',
+        '-ar', '16000',
+        '-ac', '1',
+        '-f', 's16le',
+        'pipe:1'
+      ]));
     });
 
-    test('音声データを受信できること', async () => {
-      capture = new MockAudioCapture(config);
-      const dataPromise = new Promise<AudioBuffer>((resolve) => {
-        capture.on('data', (buffer: AudioBuffer) => {
-          resolve(buffer);
-        });
-      });
+    it('音声データを受信したらaudioDataイベントを発火すること', async () => {
+      const audioDataHandler = jest.fn();
+      audioCapture.on('audioData', audioDataHandler);
 
-      await capture.start();
-      const buffer = await dataPromise;
+      await audioCapture.startCapture('BlackHole 2ch');
 
-      expect(buffer).toBeDefined();
-      expect(buffer.data).toBeInstanceOf(Buffer);
-      expect(buffer.sampleRate).toBe(config.sampleRate);
-      expect(buffer.channels).toBe(config.channels);
-      expect(buffer.timestamp).toBeGreaterThan(0);
+      // FFmpegからのデータをシミュレート
+      const testData = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+      mockFFmpeg.stdout!.emit('data', testData);
+
+      expect(audioDataHandler).toHaveBeenCalledWith(testData);
     });
 
-    test('音声キャプチャを停止できること', async () => {
-      capture = new MockAudioCapture(config);
+    it('既にキャプチャ中の場合、エラーをスローすること', async () => {
+      await audioCapture.startCapture('BlackHole 2ch');
       
-      await capture.start();
-      expect(capture.isCapturing()).toBe(true);
-      
-      await capture.stop();
-      expect(capture.isCapturing()).toBe(false);
+      await expect(audioCapture.startCapture('BlackHole 2ch'))
+        .rejects.toThrow('Audio capture is already running');
     });
 
-    test('エラー時にエラーイベントが発生すること', async () => {
-      capture = new MockAudioCapture({ ...config, deviceName: 'NonExistentDevice' });
-      
-      const errorPromise = new Promise<Error>((resolve) => {
-        capture.on('error', (error: Error) => {
-          resolve(error);
-        });
+    it('存在しないデバイスを指定した場合、エラーをスローすること', async () => {
+      const { spawn } = require('child_process');
+      spawn.mockImplementation(() => {
+        const proc = new EventEmitter() as any;
+        proc.kill = jest.fn();
+        proc.stdout = new EventEmitter() as any;
+        proc.stderr = new EventEmitter() as any;
+        
+        // FFmpegエラーをシミュレート
+        setTimeout(() => {
+          proc.stderr.emit('data', Buffer.from('Device not found'));
+          proc.emit('error', new Error('Device not found'));
+        }, 10);
+        
+        return proc;
       });
 
-      await capture.start().catch(() => {}); // エラーを無視
-      const error = await errorPromise;
-
-      expect(error).toBeDefined();
-      expect(error.message).toContain('device');
-    });
-  });
-
-  describe('buffer processing', () => {
-    test('バッファサイズが設定通りであること', async () => {
-      capture = new MockAudioCapture(config);
-      const buffers: AudioBuffer[] = [];
-      
-      capture.on('data', (buffer: AudioBuffer) => {
-        buffers.push(buffer);
-      });
-
-      await capture.start();
-      
-      // 300ms待機（バッファサイズとサンプルレートに基づく）
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      await capture.stop();
-
-      expect(buffers.length).toBeGreaterThan(0);
-      buffers.forEach(buffer => {
-        expect(buffer.data.length).toBe(config.bufferSize); // バッファサイズと一致
-      });
-    });
-
-    test('サンプルレート変換が正しく動作すること', async () => {
-      // 48kHz -> 16kHz への変換をテスト
-      const highSampleRateConfig = { ...config, sourceSampleRate: 48000 };
-      capture = new MockAudioCapture(highSampleRateConfig);
-      
-      const dataPromise = new Promise<AudioBuffer>((resolve) => {
-        capture.on('data', (buffer: AudioBuffer) => {
-          resolve(buffer);
-        });
-      });
-
-      await capture.start();
-      const buffer = await dataPromise;
-
-      expect(buffer.sampleRate).toBe(16000);
+      await expect(audioCapture.startCapture('NonExistentDevice'))
+        .rejects.toThrow('Failed to start audio capture');
     });
   });
 
-  describe('reconnection', () => {
-    test('デバイス切断時に自動再接続を試みること', async () => {
-      capture = new MockAudioCapture({ ...config, autoReconnect: true });
-      let reconnectAttempted = false;
-      
-      capture.on('reconnecting', () => {
-        reconnectAttempted = true;
-      });
-      
-      // エラーハンドラを追加
-      capture.on('error', () => {
-        // エラーを無視
-      });
+  describe('stopCapture', () => {
+    it('音声キャプチャを停止できること', async () => {
+      await audioCapture.startCapture('BlackHole 2ch');
+      await audioCapture.stopCapture();
 
-      await capture.start();
+      expect(mockFFmpeg.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('キャプチャが開始されていない場合は何もしないこと', async () => {
+      await audioCapture.stopCapture();
+      expect(mockFFmpeg.kill).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('error handling', () => {
+    it('FFmpegプロセスがクラッシュした場合、errorイベントを発火すること', async () => {
+      const errorHandler = jest.fn();
+      audioCapture.on('error', errorHandler);
+
+      await audioCapture.startCapture('BlackHole 2ch');
+      
+      const error = new Error('FFmpeg crashed');
+      mockFFmpeg.emit('error', error);
+
+      expect(errorHandler).toHaveBeenCalledWith(error);
+    });
+
+    it('デバイスが切断された場合、disconnectedイベントを発火すること', async () => {
+      const disconnectedHandler = jest.fn();
+      audioCapture.on('disconnected', disconnectedHandler);
+
+      await audioCapture.startCapture('BlackHole 2ch');
       
       // デバイス切断をシミュレート
-      (capture as MockAudioCapture).simulateDisconnect();
-      
-      // 再接続の試行を待つ
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(reconnectAttempted).toBe(true);
+      mockFFmpeg.stderr!.emit('data', Buffer.from('Input/output error'));
+      mockFFmpeg.emit('exit', 1);
+
+      expect(disconnectedHandler).toHaveBeenCalled();
     });
 
-    test.skip('最大再接続回数を超えたらエラーになること', async () => {
-      capture = new MockAudioCapture({ 
-        ...config, 
-        autoReconnect: true,
-        maxReconnectAttempts: 1 
-      });
+    it('自動再接続が有効な場合、再接続を試行すること', async () => {
+      audioCapture = new AudioCapture({ autoReconnect: true, reconnectDelay: 100 });
       
-      let errorReceived = false;
-      capture.on('error', (error: Error) => {
-        if (error.message.includes('Max reconnection attempts')) {
-          errorReceived = true;
-        }
-      });
+      const reconnectedHandler = jest.fn();
+      audioCapture.on('reconnected', reconnectedHandler);
 
-      await capture.start();
+      await audioCapture.startCapture('BlackHole 2ch');
       
-      // 複数回の切断をシミュレート
-      (capture as MockAudioCapture).simulateDisconnect();
-      await new Promise(resolve => setTimeout(resolve, 50));
-      (capture as MockAudioCapture).simulateDisconnect();
+      // 切断をシミュレート
+      mockFFmpeg.emit('exit', 1);
+
+      // 再接続を待つ
       await new Promise(resolve => setTimeout(resolve, 200));
+
+      const { spawn } = require('child_process');
+      expect(spawn).toHaveBeenCalledTimes(2); // 初回 + 再接続
+    });
+  });
+
+  describe('buffer management', () => {
+    it('指定されたバッファサイズでデータをバッファリングすること', async () => {
+      audioCapture = new AudioCapture({ bufferSize: 1024 });
       
-      expect(errorReceived).toBe(true);
+      const audioDataHandler = jest.fn();
+      audioCapture.on('audioData', audioDataHandler);
+
+      await audioCapture.startCapture('BlackHole 2ch');
+
+      // 小さなチャンクを複数送信
+      for (let i = 0; i < 10; i++) {
+        mockFFmpeg.stdout!.emit('data', Buffer.alloc(100));
+      }
+
+      // バッファサイズに達するまでイベントは発火しない
+      expect(audioDataHandler).not.toHaveBeenCalled();
+
+      // バッファサイズを超えるデータを送信
+      mockFFmpeg.stdout!.emit('data', Buffer.alloc(100));
+      
+      expect(audioDataHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ length: 1024 })
+      );
     });
   });
 });

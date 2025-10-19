@@ -1,303 +1,270 @@
 /**
- * 音声キャプチャモジュール
- * macOSの仮想音声デバイス（BlackHole）から音声を取得
+ * 音声キャプチャ
  */
 
 import { EventEmitter } from 'events';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, exec } from 'child_process';
+import { promisify } from 'util';
+import { Logger, LogLevel } from '../logging/logger';
 
-export interface AudioBuffer {
-  data: Buffer;
-  sampleRate: number;
-  channels: number;
-  timestamp: number;
-}
+const execAsync = promisify(exec);
 
-export interface AudioDevice {
-  id: string;
-  name: string;
-  type: 'input' | 'output';
-}
-
+/**
+ * 音声キャプチャの設定
+ */
 export interface AudioCaptureConfig {
-  deviceName: string;
-  sampleRate: number;
-  channels: number;
-  bufferSize: number;
-  sourceSampleRate?: number;
+  /** 音声デバイス名（例: "BlackHole 2ch"） */
+  deviceName?: string;
+  /** サンプリングレート（Hz） */
+  sampleRate?: number;
+  /** チャンネル数（1: mono, 2: stereo） */
+  channels?: number;
+  /** 自動再接続 */
   autoReconnect?: boolean;
-  maxReconnectAttempts?: number;
+  /** 再接続遅延（ミリ秒） */
+  reconnectDelay?: number;
+  /** バッファサイズ（バイト） */
+  bufferSize?: number;
 }
 
+/**
+ * 音声キャプチャクラス
+ * macOSのAVFoundationを使用して音声をキャプチャ
+ */
 export class AudioCapture extends EventEmitter {
   private config: AudioCaptureConfig;
-  private capturing = false;
-  private process: ChildProcess | null = null;
+  private ffmpegProcess: ChildProcess | null = null;
+  private isCapturing = false;
+  private buffer: Buffer = Buffer.alloc(0);
+  private reconnectTimer?: NodeJS.Timeout;
+  private currentDevice?: string;
+  private logger: Logger;
   private reconnectAttempts = 0;
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
 
-  constructor(config: AudioCaptureConfig) {
+  constructor(config: AudioCaptureConfig = {}) {
     super();
-    
-    if (config.sampleRate <= 0) {
-      throw new Error('Invalid sample rate');
-    }
-    if (config.channels <= 0) {
-      throw new Error('Invalid channel count');
-    }
-    
     this.config = {
+      sampleRate: 16000,
+      channels: 1,
       autoReconnect: false,
-      maxReconnectAttempts: 5,
-      ...config,
+      reconnectDelay: 1000,
+      bufferSize: 0,
+      ...config
     };
+    this.logger = new Logger({ level: LogLevel.INFO });
   }
 
-  getConfig(): AudioCaptureConfig {
-    return { ...this.config };
-  }
+  /**
+   * 利用可能な音声デバイスをリスト
+   */
+  async listDevices(): Promise<string[]> {
+    try {
+      const { stdout } = await execAsync('ffmpeg -f avfoundation -list_devices true -i "" 2>&1 || true');
+      const lines = stdout.split('\n');
+      const audioDevices: string[] = [];
+      let inAudioSection = false;
 
-  static async listDevices(): Promise<AudioDevice[]> {
-    return new Promise((resolve, reject) => {
-      const devices: AudioDevice[] = [];
-      
-      // macOSのsystem_profilerを使用してオーディオデバイスを列挙
-      const proc = spawn('system_profiler', ['SPAudioDataType', '-json']);
-      let output = '';
-      
-      proc.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-      
-      proc.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`Failed to list audio devices: exit code ${code}`));
-          return;
+      for (const line of lines) {
+        if (line.includes('AVFoundation audio devices:')) {
+          inAudioSection = true;
+          continue;
         }
-        
-        try {
-          const data = JSON.parse(output);
-          const audioData = data.SPAudioDataType || [];
-          
-          audioData.forEach((item: any) => {
-            // 入力デバイス
-            if (item._items) {
-              item._items.forEach((device: any) => {
-                if (device.coreaudio_input_source) {
-                  devices.push({
-                    id: device._name,
-                    name: device._name,
-                    type: 'input',
-                  });
-                }
-                if (device.coreaudio_output_source) {
-                  devices.push({
-                    id: device._name,
-                    name: device._name,
-                    type: 'output',
-                  });
-                }
-              });
+        if (line.includes('AVFoundation video devices:') && inAudioSection) {
+          break;
+        }
+        if (inAudioSection) {
+          // 2つの異なるフォーマットに対応
+          const match = line.match(/\[AVFoundation .+\] \[(\d+)\] (.+)/) || 
+                       line.match(/\[\d+\] (.+)/);
+          if (match) {
+            const deviceName = match[2] || match[1];
+            if (deviceName && deviceName.trim()) {
+              audioDevices.push(deviceName.trim());
             }
-          });
-          
-          // 簡易的なフォールバック（BlackHoleが見つからない場合）
-          if (devices.length === 0) {
-            devices.push({
-              id: 'default',
-              name: 'Default Audio Device',
-              type: 'input',
-            });
+          }
+        }
+      }
+
+      return audioDevices;
+    } catch (error) {
+      throw new Error('Failed to list audio devices');
+    }
+  }
+
+  /**
+   * 静的メソッドとしても提供
+   */
+  static async listDevices(): Promise<string[]> {
+    const instance = new AudioCapture();
+    return instance.listDevices();
+  }
+
+  /**
+   * 音声キャプチャを開始
+   */
+  async startCapture(deviceName: string): Promise<void> {
+    if (this.isCapturing) {
+      throw new Error('Audio capture is already running');
+    }
+
+    this.currentDevice = deviceName;
+    this.isCapturing = true;
+    this.logger.info(`Starting audio capture from device: ${deviceName}`);
+
+    return new Promise((resolve, reject) => {
+      try {
+        // FFmpegコマンドの構築
+        const args = [
+          '-f', 'avfoundation',
+          '-i', `:${deviceName}`,
+          '-acodec', 'pcm_s16le',
+          '-ar', String(this.config.sampleRate),
+          '-ac', String(this.config.channels),
+          '-f', 's16le',
+          'pipe:1'
+        ];
+
+        this.ffmpegProcess = spawn('ffmpeg', args);
+        let hasStarted = false;
+
+        // 標準出力（音声データ）の処理
+        this.ffmpegProcess.stdout?.on('data', (data: Buffer) => {
+          if (!hasStarted) {
+            hasStarted = true;
+            resolve();
           }
           
-          resolve(devices);
-        } catch (error) {
-          reject(new Error(`Failed to parse audio device data: ${error}`));
-        }
-      });
-      
-      proc.on('error', reject);
-    });
-  }
+          if (this.config.bufferSize && this.config.bufferSize > 0) {
+            // バッファリング処理
+            this.buffer = Buffer.concat([this.buffer, data]);
+            
+            while (this.buffer.length >= this.config.bufferSize) {
+              const chunk = this.buffer.slice(0, this.config.bufferSize);
+              this.buffer = this.buffer.slice(this.config.bufferSize);
+              this.emit('audioData', chunk);
+            }
+          } else {
+            // バッファリングなし
+            this.emit('audioData', data);
+          }
+        });
 
-  static async listInputDevices(): Promise<AudioDevice[]> {
-    const devices = await this.listDevices();
-    return devices.filter(device => device.type === 'input');
-  }
+        // エラー処理
+        this.ffmpegProcess.stderr?.on('data', (data: Buffer) => {
+          const message = data.toString();
+          if (message.includes('Input/output error')) {
+            this.handleDisconnection();
+          } else if (message.includes('Device not found')) {
+            if (!hasStarted) {
+              this.cleanup();
+              reject(new Error('Failed to start audio capture'));
+            } else {
+              this.emit('error', new Error('Device not found'));
+              this.cleanup();
+            }
+          }
+        });
 
-  async start(): Promise<void> {
-    if (this.capturing) {
-      throw new Error('Already capturing');
-    }
-
-    try {
-      await this.startCapture();
-      this.capturing = true;
-      this.reconnectAttempts = 0;
-    } catch (error) {
-      this.emit('error', error);
-      throw error;
-    }
-  }
-
-  private async startCapture(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // ffmpegを使用して音声キャプチャ
-      // macOSではAVFoundationを使用
-      const args = [
-        '-f', 'avfoundation',
-        '-i', `:${this.config.deviceName}`,
-        '-acodec', 'pcm_s16le',
-        '-ar', this.config.sampleRate.toString(),
-        '-ac', this.config.channels.toString(),
-        '-f', 's16le',
-        '-blocksize', this.config.bufferSize.toString(),
-        'pipe:1',
-      ];
-
-      this.process = spawn('ffmpeg', args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-
-      let started = false;
-
-      this.process.stdout?.on('data', (data: Buffer) => {
-        if (!started) {
-          started = true;
-          resolve();
-        }
-
-        const audioBuffer: AudioBuffer = {
-          data,
-          sampleRate: this.config.sampleRate,
-          channels: this.config.channels,
-          timestamp: Date.now(),
-        };
-
-        this.emit('data', audioBuffer);
-      });
-
-      this.process.stderr?.on('data', (data: Buffer) => {
-        const message = data.toString();
-        
-        // ffmpegの起動確認
-        if (!started && message.includes('Stream mapping:')) {
-          started = true;
-          resolve();
-        }
-        
-        // エラーチェック
-        if (message.includes('error') || message.includes('Error')) {
-          const error = new Error(`FFmpeg error: ${message}`);
-          if (!started) {
-            reject(error);
+        // プロセスエラー
+        this.ffmpegProcess.on('error', (error) => {
+          if (!hasStarted) {
+            this.cleanup();
+            reject(new Error('Failed to start audio capture'));
           } else {
             this.emit('error', error);
-            this.handleDisconnect();
+            this.cleanup();
           }
-        }
-      });
+        });
 
-      this.process.on('error', (error) => {
-        if (!started) {
-          reject(error);
-        } else {
-          this.emit('error', error);
-          this.handleDisconnect();
-        }
-      });
+        // プロセス終了
+        this.ffmpegProcess.on('exit', (code) => {
+          if (code !== 0 && this.isCapturing) {
+            this.handleDisconnection();
+          }
+        });
 
-      this.process.on('close', (code) => {
-        if (!started && code !== 0) {
-          reject(new Error(`FFmpeg exited with code ${code}`));
-        } else if (this.capturing) {
-          this.handleDisconnect();
-        }
-      });
-
-      // タイムアウト設定
-      setTimeout(() => {
-        if (!started) {
-          this.process?.kill();
-          reject(new Error('Capture start timeout - device may not exist'));
-        }
-      }, 5000);
-    });
-  }
-
-  async stop(): Promise<void> {
-    this.capturing = false;
-    
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    
-    if (this.process) {
-      this.process.kill('SIGTERM');
-      
-      // プロセスの終了を待つ
-      await new Promise<void>((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!this.process || this.process.killed) {
-            clearInterval(checkInterval);
+        // タイムアウト処理
+        setTimeout(() => {
+          if (!hasStarted) {
+            hasStarted = true;
             resolve();
           }
         }, 100);
-        
-        // 強制終了のタイムアウト
-        setTimeout(() => {
-          if (this.process && !this.process.killed) {
-            this.process.kill('SIGKILL');
-          }
-          clearInterval(checkInterval);
-          resolve();
-        }, 2000);
-      });
-      
-      this.process = null;
-    }
-  }
 
-  isCapturing(): boolean {
-    return this.capturing;
-  }
-
-  // テスト用メソッド
-  simulateDisconnect(): void {
-    if (this.process) {
-      this.process.kill();
-    }
-  }
-
-  private handleDisconnect(): void {
-    if (!this.capturing || !this.config.autoReconnect) {
-      return;
-    }
-
-    this.reconnectAttempts++;
-    
-    if (this.reconnectAttempts > (this.config.maxReconnectAttempts || 5)) {
-      this.emit('error', new Error('Max reconnection attempts exceeded'));
-      this.stop();
-      return;
-    }
-
-    this.emit('reconnecting', this.reconnectAttempts);
-    
-    // 指数バックオフで再接続
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    
-    this.reconnectTimer = setTimeout(async () => {
-      if (this.capturing) {
-        try {
-          await this.startCapture();
-          this.emit('reconnected');
-          this.reconnectAttempts = 0;
-        } catch (error) {
-          this.handleDisconnect();
-        }
+      } catch (error) {
+        this.cleanup();
+        reject(new Error('Failed to start audio capture'));
       }
-    }, delay);
+    });
+  }
+
+  /**
+   * 音声キャプチャを停止
+   */
+  async stopCapture(): Promise<void> {
+    if (!this.isCapturing) {
+      return;
+    }
+
+    this.cleanup();
+  }
+
+  /**
+   * クリーンアップ
+   */
+  private cleanup(): void {
+    this.isCapturing = false;
+    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+
+    if (this.ffmpegProcess) {
+      this.ffmpegProcess.kill('SIGTERM');
+      this.ffmpegProcess = null;
+    }
+
+    this.buffer = Buffer.alloc(0);
+  }
+
+  /**
+   * 切断処理
+   */
+  private handleDisconnection(): void {
+    this.emit('disconnected');
+    this.logger.warn('Audio device disconnected');
+    
+    const wasCapturing = this.isCapturing;
+    this.cleanup();
+
+    if (this.config.autoReconnect && this.currentDevice && wasCapturing) {
+      if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+        this.logger.error(`Maximum reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached`);
+        this.emit('error', new Error('Maximum reconnection attempts reached'));
+        return;
+      }
+
+      this.reconnectAttempts++;
+      const delay = this.config.reconnectDelay! * Math.pow(2, this.reconnectAttempts - 1); // Exponential backoff
+      
+      this.logger.info(`Attempting to reconnect (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS}) in ${delay}ms`);
+      
+      this.reconnectTimer = setTimeout(() => {
+        this.startCapture(this.currentDevice!)
+          .then(() => {
+            this.reconnectAttempts = 0; // Reset on successful connection
+            this.logger.info('Successfully reconnected to audio device');
+            this.emit('reconnected');
+          })
+          .catch((error) => {
+            this.logger.error('Failed to reconnect', error);
+            this.emit('error', error);
+            // Will retry again if attempts remain
+            this.handleDisconnection();
+          });
+      }, delay);
+    }
   }
 }

@@ -43,7 +43,7 @@ describe('ModerationManager', () => {
 
       expect(result).toBeDefined();
       expect(result.flagged).toBeDefined();
-      expect(result.categories).toBeDefined();
+      expect(result.flaggedCategories).toBeDefined();
       expect(result.scores).toBeDefined();
     });
 
@@ -210,7 +210,7 @@ describe('ModerationManager', () => {
       const guidelines = ['丁寧な表現を使用してください', '攻撃的な言葉を避けてください'];
 
       const content = '攻撃的な内容';
-      const result = await manager.moderateAndRewrite(content, guidelines);
+      const result = await manager.moderateAndRewrite(content, guidelines.join(' '));
 
       if (result.rewritten && result.rewrittenContent) {
         // ガイドラインが考慮されているか（モックでは簡易的な確認）

@@ -3,9 +3,15 @@
  */
 
 import { AppConfig } from '../shared/types';
+import { EdgeConfigClient } from './edge-config-client';
+import { ConfigSync } from './config-sync';
 
 // Edge Configのキャッシュ
 let configCache: Partial<AppConfig> | null = null;
+
+// クライアントのインスタンス
+const edgeConfigClient = new EdgeConfigClient();
+const configSync = new ConfigSync(edgeConfigClient);
 
 /**
  * 設定を取得
@@ -13,19 +19,36 @@ let configCache: Partial<AppConfig> | null = null;
  */
 export async function getConfig(): Promise<Partial<AppConfig>> {
   // キャッシュがあればそれを返す
-  if (configCache) {
+  if (configCache && process.env.NODE_ENV === 'production') {
     return configCache;
   }
 
-  // Vercel Edge Configから取得（開発環境ではダミーデータ）
-  if (process.env.VERCEL_ENV === 'production') {
-    // TODO: 実際のEdge Config実装
-    // const config = await get('comment-bot-config');
-    // return config;
+  // Vercel Edge Configから取得
+  if (process.env.VERCEL_ENV === 'production' || process.env.EDGE_CONFIG) {
+    try {
+      const localConfig = getDefaultConfig();
+      const syncedConfig = await configSync.syncConfig(localConfig, {
+        fallbackToLocal: true,
+        preserveLocal: ['youtube', 'providers'], // シークレット情報は保持
+      });
+      configCache = syncedConfig;
+      return syncedConfig;
+    } catch (error) {
+      console.warn('Failed to sync with Edge Config:', error);
+    }
   }
 
-  // 開発環境のデフォルト設定
-  const defaultConfig: Partial<AppConfig> = {
+  // デフォルト設定を返す
+  const defaultConfig = getDefaultConfig();
+  configCache = defaultConfig;
+  return defaultConfig;
+}
+
+/**
+ * デフォルト設定を取得
+ */
+function getDefaultConfig(): Partial<AppConfig> {
+  return {
     comment: {
       tone: 'friendly',
       characterPersona: 'フレンドリーな視聴者',
@@ -59,9 +82,6 @@ export async function getConfig(): Promise<Partial<AppConfig>> {
       },
     },
   };
-
-  configCache = defaultConfig;
-  return defaultConfig;
 }
 
 /**
@@ -75,17 +95,25 @@ export async function updateConfig(config: Partial<AppConfig>): Promise<{
   error?: string;
 }> {
   try {
-    // Edge Configに保存（開発環境ではキャッシュに保存）
-    if (process.env.VERCEL_ENV === 'production') {
-      // TODO: 実際のEdge Config実装
-      // await update('comment-bot-config', config);
+    // 現在の設定を取得
+    const currentConfig = await getConfig();
+    
+    // 設定をマージ
+    const updatedConfig = {
+      ...currentConfig,
+      ...config,
+    };
+
+    // Edge Configに保存可能な部分のみを抽出
+    if (process.env.VERCEL_ENV === 'production' || process.env.EDGE_CONFIG) {
+      const sanitizedConfig = configSync.sanitizeForEdgeConfig(updatedConfig);
+      // TODO: Edge Config APIでの更新はRead-onlyのため、
+      // 実際の更新はVercelダッシュボードまたはAPIで行う必要がある
+      console.log('Sanitized config for Edge Config:', sanitizedConfig);
     }
 
     // キャッシュを更新
-    configCache = {
-      ...configCache,
-      ...config,
-    };
+    configCache = updatedConfig;
 
     return {
       success: true,

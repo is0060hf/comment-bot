@@ -1,0 +1,148 @@
+# Comment Bot デフォルト設定
+
+# コメント設定
+comment:
+  # トーン: friendly, casual, formal, enthusiastic
+  tone: friendly
+  
+  # キャラクター設定
+  characterPersona: "配信を楽しんでいる親しみやすい視聴者"
+  
+  # コメント長さ（文字数）
+  targetLength:
+    min: 20
+    max: 100
+  
+  # 推奨される表現
+  encouragedExpressions:
+    - "なるほど！"
+    - "すごい！"
+    - "勉強になります"
+    - "面白い"
+    - "ありがとうございます"
+  
+  # NGワード（これらの単語を含むコメントは投稿されません）
+  ngWords: []
+  
+  # 絵文字ポリシー
+  emojiPolicy:
+    enabled: true
+    maxCount: 3
+    allowedEmojis:
+      - "👍"
+      - "😊"
+      - "🎉"
+      - "💡"
+      - "🔥"
+      - "✨"
+      - "👏"
+      - "😄"
+
+# タイミング設定
+timing:
+  # コメント投稿の最小間隔（秒）
+  minimumInterval: 30
+  
+  # 10分あたりの最大コメント数
+  maxCommentsPerTenMinutes: 5
+  
+  # 連続投稿後のクールダウン（秒）
+  cooldownAfterBurst: 120
+  
+  # 重複コメントの防止期間（秒）
+  deduplicationWindow: 300
+
+# 音声設定
+audio:
+  # 使用するオーディオデバイス
+  device: "BlackHole 2ch"
+  
+  # サンプルレート
+  sampleRate: 48000
+  
+  # チャンネル数（1: モノラル, 2: ステレオ）
+  channels: 2
+  
+  # バッファサイズ
+  bufferSize: 512
+  
+  # レイテンシヒント: interactive, balanced, playback
+  latencyHint: balanced
+
+# STT（音声認識）プロバイダー設定
+providers:
+  stt:
+    primary: deepgram
+    fallback:
+      - openai-whisper
+      - gcp-speech-v2
+
+# LLM（言語モデル）プロバイダー設定
+  llm:
+    primary: openai
+    model: gpt-4o-mini
+    temperature: 0.7
+    maxTokens: 150
+
+# モデレーション設定
+  moderation:
+    primary: openai
+    fallback:
+      - perspective
+
+# 安全設定
+safety:
+  # レベル: strict, standard, relaxed
+  level: standard
+  
+  # 安全フィルタリングを有効化
+  enabled: true
+  
+  # 不確実な場合にブロック
+  blockOnUncertainty: false
+  
+  # カテゴリ別の閾値（0.0-1.0）
+  moderationThresholds:
+    hate: 0.7
+    harassment: 0.7
+    self-harm: 0.8
+    sexual: 0.8
+    violence: 0.7
+    illegal: 0.9
+    graphic: 0.8
+
+# YouTube設定
+youtube:
+  # 認証情報はコードに含めない（環境変数を使用）
+  # clientId: 環境変数から取得
+  # clientSecret: 環境変数から取得
+  
+  # APIレート制限
+  quotaLimit: 10000
+  quotaResetTime: "00:00"
+
+# ログ設定
+logging:
+  # ログレベル: debug, info, warn, error
+  level: info
+  
+  # ログファイルの保存
+  file:
+    enabled: true
+    path: "./logs"
+    maxSize: "10m"
+    maxFiles: 5
+  
+  # PII（個人情報）のマスキング
+  maskPII: true
+
+# 開発設定
+development:
+  # モックモードの有効化
+  mockMode: false
+  
+  # デバッグ情報の表示
+  debug: false
+  
+  # ドライラン（実際には投稿しない）
+  dryRun: false
